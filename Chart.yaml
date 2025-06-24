@@ -1,0 +1,20 @@
+apiVersion: v2
+name: ejabberd
+description: A Helm chart for ejabberd XMPP server with JWT authentication
+type: application
+version: 0.1.0
+appVersion: "25.04"
+keywords:
+  - ejabberd
+  - xmpp
+  - messaging
+  - chat
+  - mqtt
+  - realtime
+home: https://www.ejabberd.im/
+sources:
+  - https://github.com/processone/ejabberd
+maintainers:
+  - name: ejabberd-helm
+    email: admin@example.com
+dependencies: [] 

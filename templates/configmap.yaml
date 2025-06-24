@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ejabberd.fullname" . }}-config
+  labels:
+    {{- include "ejabberd.labels" . | nindent 4 }}
+data:
+  ejabberd.yml: |
+    hosts:
+      - {{ include "ejabberd.domain" . | quote }}
+
+    listen:
+      - port: 5222
+        ip: "::"
+        module: ejabberd_c2s
+        starttls: true
+      - port: 5269
+        ip: "::"
+        module: ejabberd_s2s_in
+      - port: 5280
+        ip: "::"
+        module: ejabberd_http
+        request_handlers:
+          "/api": mod_http_api
+          "/admin": ejabberd_web_admin
+
+    # Authentication methods - JWT primary for Firebase tokens
+    auth_method:
+      {{- if .Values.ejabberd.auth.methods.jwt.enabled }}
+      - jwt
+      {{- end }}
+      {{- if .Values.ejabberd.auth.methods.internal.enabled }}
+      - internal
+      {{- end }}
+
+    # JWT configuration for Firebase tokens
+    {{- if .Values.ejabberd.auth.methods.jwt.enabled }}
+    jwt_secret: {{ .Values.ejabberd.auth.methods.jwt.key | quote }}
+    jwt_algorithm: {{ .Values.ejabberd.auth.methods.jwt.algorithm | quote }}
+    {{- end }}
+
+    acl:
+      admin:
+        user:
+          {{- range .Values.ejabberd.admins }}
+          - {{ . | quote }}
+          {{- end }}
+
+    access_rules:
+      local:
+        - allow: all
+      c2s:
+        - allow: all
+      announce:
+        - allow: admin
+      configure:
+        - allow: admin
+      register:
+        - allow: all
+
+    api_permissions:
+      "console commands":
+        from:
+          - ejabberd_ctl
+        who: all
+        what: "*"
+      "admin access":
+        who:
+          - access:
+              - allow:
+                {{- range .Values.ejabberd.admins }}
+                - user: {{ . | quote }}
+                {{- end }}
+        what:
+          - "*"
+          - "!stop"
+          - "!start"
+      "public commands":
+        who:
+          - ip: "127.0.0.1/8"
+          - ip: "::1/128"
+          - ip: "10.0.0.0/8"
+          - ip: "172.16.0.0/12"
+          - ip: "192.168.0.0/16"
+        what:
+          - "status"
+          - "connected_users_number"
+
+    modules:
+      mod_admin_extra: {}
+      mod_adhoc: {}
+      mod_blocking: {}
+      mod_caps: {}
+      mod_disco: {}
+      mod_http_api: {}
+      mod_offline: {}
+      mod_ping: {}
+      mod_privacy: {}
+      mod_private: {}
+      mod_register: {}
+      mod_roster: {}
+      mod_stats: {}
+      mod_time: {}
+      mod_vcard: {}
+      mod_version: {} 

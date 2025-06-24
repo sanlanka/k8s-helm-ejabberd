@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ejabberd.fullname" . }}
+  labels:
+    {{- include "ejabberd.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    # XMPP client-to-server port
+    - port: {{ .Values.service.xmpp.port }}
+      targetPort: {{ .Values.service.xmpp.targetPort }}
+      protocol: TCP
+      name: xmpp-c2s
+    # XMPP server-to-server port
+    - port: {{ .Values.service.xmpps2s.port }}
+      targetPort: {{ .Values.service.xmpps2s.targetPort }}
+      protocol: TCP
+      name: xmpp-s2s
+    # HTTP port for API and admin interface
+    - port: {{ .Values.service.http.port }}
+      targetPort: {{ .Values.service.http.targetPort }}
+      protocol: TCP
+      name: http
+    # HTTPS port
+    - port: {{ .Values.service.https.port }}
+      targetPort: {{ .Values.service.https.targetPort }}
+      protocol: TCP
+      name: https
+    {{- if .Values.ejabberd.modules.mod_mqtt.enabled }}
+    # MQTT port
+    - port: {{ .Values.service.mqtt.port }}
+      targetPort: {{ .Values.service.mqtt.targetPort }}
+      protocol: TCP
+      name: mqtt
+    # MQTT over TLS port
+    - port: {{ .Values.service.mqtts.port }}
+      targetPort: {{ .Values.service.mqtts.targetPort }}
+      protocol: TCP
+      name: mqtts
+    {{- end }}
+  selector:
+    {{- include "ejabberd.selectorLabels" . | nindent 4 }} 
