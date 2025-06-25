@@ -1,8 +1,22 @@
 # ejabberd Helm Chart
 
-A Kubernetes Helm chart for deploying ejabberd XMPP server with API testing.
+A Kubernetes Helm chart for deploying ejabberd XMPP server with comprehensive API testing.
 
-## Quick Start
+## Quick Start (Automated)
+
+**One-command setup and testing:**
+```bash
+./setup-and-test.sh
+```
+
+**One-command cleanup:**
+```bash
+./teardown.sh
+```
+
+## Manual Setup (Optional)
+
+If you prefer manual control:
 
 1. **Deploy ejabberd**:
    ```bash
