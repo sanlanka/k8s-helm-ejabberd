@@ -54,10 +54,12 @@ resources: {}
   #   memory: 128Mi
 
 livenessProbe:
-  httpGet:
-    path: /
+  tcpSocket:
     port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
 readinessProbe:
-  httpGet:
-    path: /
-    port: http 
+  tcpSocket:
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5 
