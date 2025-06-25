@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ejabberd.fullname" . }}
+  labels:
+    {{- include "ejabberd.labels" . | nindent 4 }}
+data:
+  ejabberd.yml: |
+    loglevel: {{ .Values.logLevel }}
+    hosts:
+      - "{{ .Values.xmpp.domain }}"
+    
+    listen:
+      -
+        port: 5280
+        module: ejabberd_http
+        request_handlers:
+          "/api": mod_http_api
+    
+    acl:
+      admin:
+        user:
+          - "{{ .Values.auth.adminUser }}@{{ .Values.xmpp.domain }}"
+      loopback:
+        ip:
+          - 127.0.0.0/8
+          - ::1/128
+          - ::FFFF:127.0.0.1/128
+
+    api_permissions:
+      "admin access":
+        who: admin
+        what: "*"
+      "console commands":
+        who:
+          access:
+            allow:
+              acl: loopback
+        what: "*"
+    
+    modules:
+      mod_http_api: {} 

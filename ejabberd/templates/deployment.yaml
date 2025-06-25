@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ejabberd.fullname" . }}
+  labels:
+    {{- include "ejabberd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ejabberd.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ejabberd.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "ejabberd.serviceAccountName" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: REGISTER_ADMIN_PASSWORD
+              value: "{{ .Values.auth.adminPassword }}"
+            - name: EJABBERD_MACRO_ADMIN
+              value: "{{ .Values.auth.adminUser }}@{{ .Values.xmpp.domain }}"
+            - name: EJABBERD_MACRO_HOST
+              value: "{{ .Values.xmpp.domain }}"
+          ports:
+            - name: http
+              containerPort: 5280
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /opt/ejabberd/conf/ejabberd.yml
+              subPath: ejabberd.yml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "ejabberd.fullname" . }} 
