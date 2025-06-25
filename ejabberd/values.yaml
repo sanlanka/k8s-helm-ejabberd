@@ -13,6 +13,19 @@ auth:
   adminUser: admin
   adminPassword: "admin_password"
 
+jwt:
+  enabled: false
+  secret: |
+    {
+      "kty": "oct",
+      "use": "sig",
+      "k": "cjjkgwWy64_olK22FaABFblB2d-L4kXC2TsTZ4ixxoyMh1wMNhwc3WbWfJsZV6OvVNesd2Xx4PQoOa_YX-g1EyHbNWPzDA8ptAXaBxBUjqtQHN9pEAly4HC9I3h1iQv8yKjj9h-dqCk10Z6aOZ0jxseBR0X-yPqsrzMKAw6_IFTeoEe-hiQwhpPR5XKitN3bJTCo5oZ_EKqRwWQ5pQ0He-Z4Iis2C1j2QlRf_0vWpbw5MsnUW3kEoLvPj2exFLuKKbsImzMeayIfuduQ4WJcgadYWvFlX3SU9mDmXLUWmHBYdTo5ip76uLHB3F3XAHAqeta5oeLqw7vopDPUyZMGMw",
+      "alg": "HS256"
+    }
+  algorithm: "HS256"
+  issuer: "middleware-app"
+  userClaim: "sub"
+
 image:
   repository: ghcr.io/processone/ejabberd
   pullPolicy: IfNotPresent

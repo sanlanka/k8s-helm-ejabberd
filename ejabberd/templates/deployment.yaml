@@ -33,6 +33,11 @@ spec:
             - name: config
               mountPath: /opt/ejabberd/conf/ejabberd.yml
               subPath: ejabberd.yml
+            {{- if .Values.jwt.enabled }}
+            - name: config
+              mountPath: /opt/ejabberd/conf/jwt_secret.key
+              subPath: jwt_secret.key
+            {{- end }}
       volumes:
         - name: config
           configMap:

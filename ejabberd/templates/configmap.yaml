@@ -10,6 +10,13 @@ data:
     hosts:
       - "{{ .Values.xmpp.domain }}"
     
+    {{- if .Values.jwt.enabled }}
+    auth_method: jwt
+    jwt_key: "/opt/ejabberd/conf/jwt_secret.key"
+    {{- else }}
+    auth_method: internal
+    {{- end }}
+    
     listen:
       -
         port: 5280
@@ -39,4 +46,8 @@ data:
         what: "*"
     
     modules:
-      mod_http_api: {} 
+      mod_http_api: {}
+  {{- if .Values.jwt.enabled }}
+  jwt_secret.key: |-
+{{ .Values.jwt.secret | indent 4 }}
+  {{- end }} 
