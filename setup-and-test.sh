@@ -6,17 +6,17 @@ echo "🚀 Setting up ejabberd and running tests..."
 echo "==========================================="
 
 # Check if release already exists
-if helm list | grep -q "my-ejabberd"; then
+if helm list | grep -q "ejabberd"; then
     echo "📦 Upgrading existing ejabberd Helm chart..."
-    helm upgrade my-ejabberd ./ejabberd
+    helm upgrade ejabberd ./ejabberd -f values-custom.yaml
 else
     echo "📦 Installing ejabberd Helm chart..."
-    helm install my-ejabberd ./ejabberd
+    helm install ejabberd ./ejabberd -f values-custom.yaml
 fi
 
 # Wait for pod to be ready
 echo "⏳ Waiting for ejabberd to start..."
-kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=ejabberd --timeout=60s || {
+kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=ejabberd --timeout=180s || {
     echo "⚠️  Pod not ready yet, checking if API is available..."
 }
 
@@ -25,8 +25,8 @@ echo "🔗 Setting up port forwarding..."
 pkill -f "kubectl port-forward" || true
 sleep 2
 
-# Set up port forwarding in background
-kubectl port-forward service/my-ejabberd 5280:5280 >/dev/null 2>&1 &
+# Set up port forwarding in background (using internal service port 5280)
+kubectl port-forward service/ejabberd-internal 5280:5280 >/dev/null 2>&1 &
 PORT_FORWARD_PID=$!
 
 # Wait for port forwarding to be ready
@@ -67,7 +67,7 @@ if hurl --variables-file tests/vars.env --test --jobs 1 tests/*.hurl; then
     echo "📋 Summary:"
     echo "   - ejabberd is deployed and running"
     echo "   - API is accessible on port 5280"
-    echo "   - All 5 tests passed successfully"
+    echo "   - All tests passed successfully"
     echo ""
     echo "🌐 ejabberd is now accessible at: http://localhost:5280"
     echo "🔗 Port-forwarding is running in background (PID: $PORT_FORWARD_PID)"

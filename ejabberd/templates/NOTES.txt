@@ -1,0 +1,42 @@
+{{- if .Values.service.enabled }}
+1. Get the ejabberd connection details by running these commands:
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "ejabberd.fullname" . }}'
+
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "ejabberd.fullname" . }} --template "{{ "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}" }}")
+
+{{- if index .Values.listen "c2s" "enabled" }}
+  # For XMPP clients (c2s), connect to:
+  echo "XMPP Client Connection: $SERVICE_IP:{{ index .Values.listen "c2s" "exposedPort" }}"
+{{- end }}
+
+{{- if index .Values.listen "s2s" "enabled" }}
+  # For XMPP server-to-server (s2s) connections:
+  echo "XMPP Server Connection: $SERVICE_IP:{{ index .Values.listen "s2s" "exposedPort" }}"
+{{- end }}
+
+{{- if index .Values.listen "http" "enabled" }}
+  # For HTTP interface:
+  echo "HTTP Interface: http://$SERVICE_IP:{{ index .Values.listen "http" "exposedPort" }}"
+{{- end }}
+
+{{- if index .Values.listen "https" "enabled" }}
+  # For HTTPS interface:
+  echo "HTTPS Interface: https://$SERVICE_IP:{{ index .Values.listen "https" "exposedPort" }}"
+{{- end }}
+
+{{- if index .Values.listen "stun" "enabled" }}
+  # For STUN/TURN services:
+  echo "STUN/TURN: $SERVICE_IP:{{ index .Values.listen "stun" "exposedPort" }} (UDP)"
+{{- end }}
+
+2. Additional Information:
+{{- if .Values.hosts }}
+   Configured hosts: {{ .Values.hosts | join ", " }}
+{{- end }}
+{{- if .Values.sqlDatabase.enabled }}
+   Database: SQL backend enabled
+{{- else }}
+   Database: Using Mnesia (default)
+{{- end }}
+{{- end }}

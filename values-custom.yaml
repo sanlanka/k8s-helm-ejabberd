@@ -1,0 +1,14 @@
+# Custom values for ejabberd with API enabled on port 5280
+listen:
+  http:
+    enabled: true
+    port: 5280
+    expose: false
+    exposedPort: 5280
+    protocol: TCP
+    options:
+      ip: "::"
+      module: ejabberd_http
+      request_handlers:
+        /api: mod_http_api
+        /admin: ejabberd_web_admin 

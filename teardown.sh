@@ -5,12 +5,12 @@ echo "======================================"
 
 # Kill any existing port forwarding
 echo "🔌 Stopping port forwarding..."
-pkill -f "kubectl port-forward.*my-ejabberd" 2>/dev/null || true
+pkill -f "kubectl port-forward.*ejabberd" 2>/dev/null || true
 
 # Uninstall the Helm release
 echo "🗑️  Uninstalling Helm release..."
-helm uninstall my-ejabberd 2>/dev/null || {
-    echo "ℹ️  No release 'my-ejabberd' found (already cleaned up)"
+helm uninstall ejabberd 2>/dev/null || {
+    echo "ℹ️  No release 'ejabberd' found (already cleaned up)"
 }
 
 # Wait for pods to be terminated
