@@ -731,6 +731,21 @@ authentification: {}
   #   - "x-oauth2"
 
 #
+# JWT Authentication configuration
+#
+jwt:
+  # -- Enable JWT authentication
+  enabled: false
+  # -- Name of the Kubernetes secret containing the JWT key
+  secretName: ""
+  # -- Key name within the secret (default: jwt-key)
+  secretKey: "jwt-key"
+  # -- JWT JID field name (default: sub)
+  jidField: "sub"
+  # -- JWT key file path inside the container (default: /opt/ejabberd/conf/jwt-key)
+  keyPath: "/opt/ejabberd/conf/jwt-key"
+
+#
 # CAPTCHA configuration
 # https://docs.ejabberd.im/admin/configuration/basic/#captcha
 #

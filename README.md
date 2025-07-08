@@ -125,6 +125,90 @@ Content-Type: application/json
 HTTP 200
 ```
 
+## 🔐 JWT Authentication with ejabberd
+
+This chart supports JWT (JSON Web Token) authentication for XMPP users. JWT is a modern, stateless authentication mechanism.
+
+### Enabling JWT Authentication
+
+1. **Enable JWT in your `values-custom.yaml`:**
+
+```yaml
+jwt:
+  enabled: true
+  secretName: "jwt-secret"
+  secretKey: "jwt-key"
+  jidField: "sub"
+  keyPath: "/opt/ejabberd/jwt-key"
+
+authentification:
+  auth_method:
+    - jwt
+    - mnesia
+```
+
+2. **Create the Kubernetes secret for the JWT key:**
+
+By default, the setup script will create a secret named `jwt-secret` with the key `jwt-key` and a default value. To set your own secret:
+
+```bash
+kubectl create secret generic jwt-secret --from-literal=jwt-key="your-super-secret-key"
+```
+
+If you use the setup script, it will print the default secret value after deployment.
+
+### Generating a JWT Token
+
+You can generate a JWT token for XMPP authentication using Python:
+
+```python
+import jwt
+payload = {"sub": "testuser@localhost"}
+secret = "your-super-secret-key"  # Must match the value in the Kubernetes secret
+print(jwt.encode(payload, secret, algorithm="HS256"))
+```
+
+### Using the JWT Token for XMPP Authentication
+
+- Use the generated JWT token as the password when connecting with your XMPP client.
+- The username/JID should match the `sub` claim in the token (e.g., `testuser@localhost`).
+- No password is needed, only the JWT token.
+
+### Example: Authenticating with JWT
+
+```bash
+# Register a user (if not already registered)
+curl -X POST http://localhost:5280/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"user": "testuser", "host": "localhost", "password": "irrelevant"}'
+
+# Generate JWT token (Python)
+python3 -c 'import jwt; print(jwt.encode({"sub": "testuser@localhost"}, "your-super-secret-key", algorithm="HS256"))'
+
+# Use the token as the password in your XMPP client
+```
+
+### JWT Test Example
+
+See `tests/08_jwt_comprehensive_test.hurl` for a test that demonstrates JWT-enabled registration and status checks.
+
+### Default JWT Secret
+
+If you do not provide your own secret, the default is:
+
+```
+my-secret-key
+```
+
+**Change this in production!**
+
+### Troubleshooting JWT
+
+- If authentication fails, ensure the JWT secret in Kubernetes matches what you use to sign tokens.
+- The `sub` claim in the JWT must match the user's JID (e.g., `testuser@localhost`).
+- Check pod logs for errors: `kubectl logs -l app.kubernetes.io/name=ejabberd`
+- If you change the secret, restart the pods or redeploy the chart.
+
 ## 🔐 What is JWT Authentication?
 
 JWT (JSON Web Token) authentication provides a modern, stateless authentication mechanism for XMPP servers. Instead of storing passwords, the system uses cryptographically signed tokens.

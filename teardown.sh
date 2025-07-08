@@ -24,6 +24,12 @@ if [ "$REMAINING_PODS" -gt 0 ]; then
     kubectl delete pods -l app.kubernetes.io/name=ejabberd --force --grace-period=0 2>/dev/null || true
 fi
 
+# Clean up JWT secret
+echo "🔐 Cleaning up JWT secret..."
+kubectl delete secret jwt-secret 2>/dev/null || {
+    echo "ℹ️  No JWT secret found (already cleaned up)"
+}
+
 echo ""
 echo "✅ Teardown complete!"
 echo "   - Helm release uninstalled"

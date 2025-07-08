@@ -197,6 +197,12 @@
         {{- if .Values.additionalVolumeMounts }}
           {{- toYaml .Values.additionalVolumeMounts | nindent 10 }}
         {{- end }}
+        {{- if .Values.jwt.enabled }}
+          - name: jwt-secret
+            mountPath: {{ .Values.jwt.keyPath }}
+            subPath: {{ .Values.jwt.secretKey }}
+            readOnly: true
+        {{- end }}
         args:
           {{- with .Values.globalArguments }}
           {{- range . }}
@@ -320,5 +326,10 @@
         {{- end }}
         {{- if .Values.statefulSet.additionalVolumes }}
           {{- toYaml .Values.statefulSet.additionalVolumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values.jwt.enabled }}
+        - name: jwt-secret
+          secret:
+            secretName: {{ .Values.jwt.secretName }}
         {{- end }}
 {{ end -}}

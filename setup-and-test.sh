@@ -5,6 +5,19 @@ set -e
 echo "🚀 Setting up ejabberd and running tests..."
 echo "==========================================="
 
+# Create JWT secret if it doesn't exist
+echo "🔐 Creating JWT secret..."
+DEFAULT_JWT_SECRET="ejabberd-default-jwt-secret-key-2024-super-secure-and-long-enough-for-production-use"
+if ! kubectl get secret jwt-secret >/dev/null 2>&1; then
+    echo "Creating JWT secret with default key..."
+    kubectl create secret generic jwt-secret --from-literal=jwt-key="$DEFAULT_JWT_SECRET"
+    echo "✅ JWT secret created with default key"
+else
+    echo "✅ JWT secret already exists"
+    # Get the existing secret value
+    DEFAULT_JWT_SECRET=$(kubectl get secret jwt-secret -o jsonpath='{.data.jwt-key}' | base64 -d)
+fi
+
 # Check if release already exists
 if helm list | grep -q "ejabberd"; then
     echo "📦 Upgrading existing ejabberd Helm chart..."
@@ -69,6 +82,11 @@ if hurl --variables-file tests/vars.env --test --jobs 1 tests/*.hurl; then
     echo "   - API is accessible on port 5280"
     echo "   - All tests passed successfully"
     echo ""
+    echo "🔐 JWT Configuration:"
+    echo "   - JWT Authentication: ENABLED"
+    echo "   - JWT Secret Key: $DEFAULT_JWT_SECRET"
+    echo "   - JWT JID Field: sub"
+    echo ""
     echo "🌐 ejabberd is now accessible at: http://localhost:5280"
     echo "🔗 Port-forwarding is running in background (PID: $PORT_FORWARD_PID)"
     echo "🧹 To clean up, run: ./teardown.sh"
@@ -76,6 +94,12 @@ if hurl --variables-file tests/vars.env --test --jobs 1 tests/*.hurl; then
 else
     echo ""
     echo "❌ Some tests failed. Check the output above."
+    echo ""
+    echo "🔐 JWT Configuration:"
+    echo "   - JWT Authentication: ENABLED"
+    echo "   - JWT Secret Key: $DEFAULT_JWT_SECRET"
+    echo "   - JWT JID Field: sub"
+    echo ""
     echo "🧹 To clean up, run: ./teardown.sh"
     exit 1
 fi

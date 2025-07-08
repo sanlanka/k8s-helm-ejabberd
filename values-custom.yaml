@@ -11,4 +11,18 @@ listen:
       module: ejabberd_http
       request_handlers:
         /api: mod_http_api
-        /admin: ejabberd_web_admin 
+        /admin: ejabberd_web_admin
+
+# JWT Authentication
+jwt:
+  enabled: true
+  secretName: "jwt-secret"
+  secretKey: "jwt-key"
+  jidField: "sub"
+  keyPath: "/opt/ejabberd/jwt-key"
+
+# Authentication method
+authentification:
+  auth_method:
+    - jwt
+    - mnesia 
