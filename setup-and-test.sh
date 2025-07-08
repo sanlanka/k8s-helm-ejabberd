@@ -5,23 +5,21 @@ set -e
 echo "🚀 Setting up ejabberd and running tests..."
 echo "==========================================="
 
-JWT_KEY_FILE="jwt-key.txt"
 JWT_SECRET_NAME="jwt-secret"
 JWT_SECRET_KEY="jwt-key"
 JWT_KEY_PATH="/jwt-key"
-JWT_KEY_VALUE="my-super-secret-key-for-jwt-authentication"
 
-echo "$JWT_KEY_VALUE" > "$JWT_KEY_FILE"
+# Generate a random JWT key
+JWT_KEY_VALUE=$(openssl rand -hex 32)
 
+# Create the secret directly from the generated key
 kubectl delete secret $JWT_SECRET_NAME --ignore-not-found
-kubectl create secret generic $JWT_SECRET_NAME --from-file=$JWT_SECRET_KEY=$JWT_KEY_FILE
+kubectl create secret generic $JWT_SECRET_NAME --from-literal=$JWT_SECRET_KEY="$JWT_KEY_VALUE"
 
-echo "JWT secret created: $JWT_SECRET_NAME"
-echo "JWT key file: $JWT_KEY_FILE"
-echo "JWT key value: $JWT_KEY_VALUE"
-echo "Helm values should use:"
-echo "  jwt_key: $JWT_KEY_PATH"
-echo "  jwt_jid_field: jid"
+echo "🔐 JWT Configuration:"
+echo "   - JWT Secret Key: $JWT_KEY_VALUE"
+echo "   - JWT JID Field: jid"
+echo ""
 
 # Check if release already exists
 if helm list | grep -q "ejabberd"; then
