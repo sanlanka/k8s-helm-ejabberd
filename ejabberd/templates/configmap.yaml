@@ -175,12 +175,6 @@ data:
     {{- toYaml .Values.authentification | nindent 4 }}
     {{- end }}
 
-    {{- if .Values.jwt.enabled }}
-    # JWT Authentication
-    jwt_key: "{{ .Values.jwt.keyPath }}"
-    jwt_jid_field: "{{ .Values.jwt.jidField }}"
-    {{- end }}
-
     {{- if .Values.ldap }}
     {{- toYaml .Values.ldap | nindent 4 }}
     {{- end }}

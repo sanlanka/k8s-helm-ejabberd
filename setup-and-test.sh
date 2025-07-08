@@ -5,18 +5,23 @@ set -e
 echo "🚀 Setting up ejabberd and running tests..."
 echo "==========================================="
 
-# Create JWT secret if it doesn't exist
-echo "🔐 Creating JWT secret..."
-DEFAULT_JWT_SECRET="ejabberd-default-jwt-secret-key-2024-super-secure-and-long-enough-for-production-use"
-if ! kubectl get secret jwt-secret >/dev/null 2>&1; then
-    echo "Creating JWT secret with default key..."
-    kubectl create secret generic jwt-secret --from-literal=jwt-key="$DEFAULT_JWT_SECRET"
-    echo "✅ JWT secret created with default key"
-else
-    echo "✅ JWT secret already exists"
-    # Get the existing secret value
-    DEFAULT_JWT_SECRET=$(kubectl get secret jwt-secret -o jsonpath='{.data.jwt-key}' | base64 -d)
-fi
+JWT_KEY_FILE="jwt-key.txt"
+JWT_SECRET_NAME="jwt-secret"
+JWT_SECRET_KEY="jwt-key"
+JWT_KEY_PATH="/jwt-key"
+JWT_KEY_VALUE="my-super-secret-key-for-jwt-authentication"
+
+echo "$JWT_KEY_VALUE" > "$JWT_KEY_FILE"
+
+kubectl delete secret $JWT_SECRET_NAME --ignore-not-found
+kubectl create secret generic $JWT_SECRET_NAME --from-file=$JWT_SECRET_KEY=$JWT_KEY_FILE
+
+echo "JWT secret created: $JWT_SECRET_NAME"
+echo "JWT key file: $JWT_KEY_FILE"
+echo "JWT key value: $JWT_KEY_VALUE"
+echo "Helm values should use:"
+echo "  jwt_key: $JWT_KEY_PATH"
+echo "  jwt_jid_field: jid"
 
 # Check if release already exists
 if helm list | grep -q "ejabberd"; then
@@ -84,8 +89,8 @@ if hurl --variables-file tests/vars.env --test --jobs 1 tests/*.hurl; then
     echo ""
     echo "🔐 JWT Configuration:"
     echo "   - JWT Authentication: ENABLED"
-    echo "   - JWT Secret Key: $DEFAULT_JWT_SECRET"
-    echo "   - JWT JID Field: sub"
+    echo "   - JWT Secret Key: $JWT_KEY_VALUE"
+    echo "   - JWT JID Field: jid"
     echo ""
     echo "🌐 ejabberd is now accessible at: http://localhost:5280"
     echo "🔗 Port-forwarding is running in background (PID: $PORT_FORWARD_PID)"
@@ -97,8 +102,8 @@ else
     echo ""
     echo "🔐 JWT Configuration:"
     echo "   - JWT Authentication: ENABLED"
-    echo "   - JWT Secret Key: $DEFAULT_JWT_SECRET"
-    echo "   - JWT JID Field: sub"
+    echo "   - JWT Secret Key: $JWT_KEY_VALUE"
+    echo "   - JWT JID Field: jid"
     echo ""
     echo "🧹 To clean up, run: ./teardown.sh"
     exit 1

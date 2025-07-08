@@ -1,7 +1,12 @@
 #!/bin/bash
+set -e
 
 echo "🧹 Tearing down ejabberd deployment..."
 echo "======================================"
+
+JWT_SECRET_NAME="jwt-secret"
+
+kubectl delete secret $JWT_SECRET_NAME --ignore-not-found
 
 # Kill any existing port forwarding
 echo "🔌 Stopping port forwarding..."
@@ -23,12 +28,6 @@ if [ "$REMAINING_PODS" -gt 0 ]; then
     echo "🔨 Force deleting remaining pods..."
     kubectl delete pods -l app.kubernetes.io/name=ejabberd --force --grace-period=0 2>/dev/null || true
 fi
-
-# Clean up JWT secret
-echo "🔐 Cleaning up JWT secret..."
-kubectl delete secret jwt-secret 2>/dev/null || {
-    echo "ℹ️  No JWT secret found (already cleaned up)"
-}
 
 echo ""
 echo "✅ Teardown complete!"

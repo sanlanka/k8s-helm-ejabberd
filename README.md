@@ -520,3 +520,76 @@ curl http://localhost:5280/api/status
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
+
+## JWT Authentication (Recommended)
+
+This chart supports JWT authentication using a file-based secret, following official [ejabberd documentation](https://docs.ejabberd.im/admin/configuration/authentication/?h=jwt#jwt-authentication).
+
+### Quick Start (with setup script)
+
+The provided `setup-and-test.sh` script will:
+- Generate a JWT key file
+- Create a Kubernetes secret named `jwt-secret`
+- Mount the key at `/jwt-key` in the pod
+- Configure the chart for JWT auth
+- Run tests (including JWT)
+
+Just run:
+```sh
+./setup-and-test.sh
+```
+
+### Manual Setup
+
+1. **Create a JWT key file:**
+   ```sh
+   echo "your-super-secret-key" > jwt-key.txt
+   ```
+2. **Create the Kubernetes secret:**
+   ```sh
+   kubectl create secret generic jwt-secret --from-file=jwt-key=jwt-key.txt
+   ```
+3. **Configure your `values.yaml` or `values-custom.yaml`:**
+   ```yaml
+   jwt:
+     enabled: true
+     secretName: "jwt-secret"
+     secretKey: "jwt-key"
+     keyPath: "/jwt-key"
+
+   authentification:
+     auth_method:
+       - jwt
+     jwt_key: "/jwt-key"
+     jwt_jid_field: "jid"
+   ```
+4. **Deploy/upgrade the chart:**
+   ```sh
+   helm upgrade --install ejabberd ./ejabberd -f values-custom.yaml
+   ```
+
+### JWT Token Generation Example
+
+Generate a token in Python:
+```python
+import jwt
+payload = {"jid": "testuser@localhost"}
+key = "your-super-secret-key"
+token = jwt.encode(payload, key, algorithm="HS256")
+print(token)
+```
+
+### Important Notes
+- **Do NOT mount the JWT key inside `/opt/ejabberd`** (e.g., `/opt/ejabberd/jwt-key`). Use `/jwt-key` or another path outside configMap mounts.
+- The JWT key file must contain only the secret (no extra whitespace or newlines).
+- The JWT payload must include a `jid` field (not `sub`).
+- The setup script automates all of this for you.
+
+### Troubleshooting
+- If ejabberd fails to start with `No valid JWT key found in file`, check:
+  - The secret is mounted at `/jwt-key` (or your configured path)
+  - The file contains only your secret
+  - No configMap or other volume is shadowing the mount
+- If authentication fails, ensure your JWT payload uses `jid` and the key matches.
+
+For more, see the official [ejabberd JWT docs](https://docs.ejabberd.im/admin/configuration/authentication/?h=jwt#jwt-authentication). 

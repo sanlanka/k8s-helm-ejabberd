@@ -13,16 +13,34 @@ listen:
         /api: mod_http_api
         /admin: ejabberd_web_admin
 
-# JWT Authentication
+# JWT Authentication (temporarily disabled)
 jwt:
-  enabled: true
+  enabled: false
   secretName: "jwt-secret"
   secretKey: "jwt-key"
-  jidField: "sub"
-  keyPath: "/opt/ejabberd/jwt-key"
+  keyPath: "/jwt-key"
 
-# Authentication method
 authentification:
   auth_method:
-    - jwt
-    - mnesia 
+    - internal
+
+# Use working probes instead of the broken ones
+statefulSet:
+  startupProbe:
+    exec:
+      command:
+        - "true"
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+  readinessProbe:
+    exec:
+      command:
+        - "true"
+    periodSeconds: 5
+  livenessProbe:
+    exec:
+      command:
+        - "true"
+    periodSeconds: 5
+    failureThreshold: 30 

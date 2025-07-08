@@ -726,24 +726,24 @@ authentification: {}
   #  - mnesia
   # auth_password_format: scram
   # auth_scram_hash: sha256
-  # disable_sasl_mechanisms:
+    # disable_sasl_mechanisms:
   #   - "digest-md5"
   #   - "x-oauth2"
 
 #
 # JWT Authentication configuration
-#
 jwt:
-  # -- Enable JWT authentication
   enabled: false
-  # -- Name of the Kubernetes secret containing the JWT key
-  secretName: ""
-  # -- Key name within the secret (default: jwt-key)
+  secretName: "jwt-secret"
   secretKey: "jwt-key"
-  # -- JWT JID field name (default: sub)
-  jidField: "sub"
-  # -- JWT key file path inside the container (default: /opt/ejabberd/conf/jwt-key)
-  keyPath: "/opt/ejabberd/conf/jwt-key"
+  keyPath: "/jwt-key"
+
+# Example usage in authentification:
+# authentification:
+#   auth_method:
+#     - jwt
+#   jwt_key: "/jwt-key"
+#   jwt_jid_field: "jid"
 
 #
 # CAPTCHA configuration
