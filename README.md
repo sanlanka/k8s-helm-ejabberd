@@ -104,8 +104,10 @@ After running the setup script, you'll get a JWT secret key. Use it to generate 
 ```python
 import jwt
 
-secret_key = "your-generated-secret-key"  # From setup script output
-payload = {
+# Get this secret key from the setup script output
+secret_key = "31767a4abad3e213e2d35366fdff7115c69762e7f7171028e259ca1578bd503b"
+    
+    payload = {
     "jid": "testuser@localhost",
     "exp": 1735689600  # Optional expiration
 }
@@ -113,6 +115,18 @@ payload = {
 token = jwt.encode(payload, secret_key, algorithm="HS256")
 print(f"JWT Token: {token}")
 ```
+
+### How Middleware Gets the JWT Secret
+
+When you run `./setup-and-test.sh`, it prints the JWT secret key that your middleware needs:
+
+```bash
+📋 MIDDLEWARE CONFIGURATION:
+   Your middleware needs this JWT secret key to generate tokens:
+   31767a4abad3e213e2d35366fdff7115c69762e7f7171028e259ca1578bd503b
+```
+
+**Store this secret securely** in your middleware configuration (environment variables, secure config files, etc.).
 
 **XMPP Client Connection:**
 - Username: `testuser` (from jid: testuser@localhost)
@@ -169,7 +183,7 @@ resources:
     memory: 1Gi
 
 replicaCount: 3
-```
+   ```
 
 ### Deployment Commands
 ```bash

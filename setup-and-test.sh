@@ -20,6 +20,17 @@ echo "🔐 JWT Configuration:"
 echo "   - JWT Secret Key: $JWT_KEY_VALUE"
 echo "   - JWT JID Field: jid"
 echo ""
+echo "📋 MIDDLEWARE CONFIGURATION:"
+echo "   Your middleware needs this JWT secret key to generate tokens:"
+echo "   $JWT_KEY_VALUE"
+echo ""
+echo "   Example middleware code:"
+echo "   \`\`\`python"
+echo "   import jwt"
+echo "   payload = {'jid': 'user@localhost'}"
+echo "   token = jwt.encode(payload, '$JWT_KEY_VALUE', algorithm='HS256')"
+echo "   \`\`\`"
+echo ""
 
 # Check if release already exists
 if helm list | grep -q "ejabberd"; then

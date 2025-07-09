@@ -3,6 +3,26 @@
 The chart's main focus is to achieve clustering in kubernetes, however, it may
 be used to run a single server w/o any downsides as well.
 
+## Quick Reference
+
+### Default Admin Credentials
+- **Username**: `admin@localhost`
+- **Password**: Set via `ejabberd-admin-secret` Kubernetes secret
+- **Creation**: Automatic via `CTL_ON_CREATE` environment variable
+
+### JWT Authentication
+- **Secret Name**: `jwt-secret`
+- **Secret Key**: `jwt-key`
+- **Mount Path**: `/jwt-key` in container
+- **Usage**: Single secret for all users (middleware integration)
+
+### Service Endpoints
+- **XMPP Client**: `:5222`
+- **XMPP Server**: `:5269`
+- **HTTP Interface**: `:5280`
+- **HTTPS Interface**: `:5443`
+- **STUN/TURN**: `:3478` (UDP)
+
 ## General hints
 
 All configuration aspects can be found on ejabberd's [documentation page](https://docs.ejabberd.im/admin/configuration/).
@@ -181,6 +201,91 @@ kubectl exec sts/ejabberd -- ejabberdctl status
 kubectl exec sts/ejabberd -- ejabberdctl register user example.com pass
 kubectl exec sts/ejabberd -- ejabberdctl list_cluster
 ```
+
+### Admin User Management
+
+The chart supports automatic admin user creation during deployment. To set up an admin user:
+
+1. **Create Admin Secret**:
+```shell
+kubectl create secret generic ejabberd-admin-secret \
+  --from-literal=admin-password="your-secure-password" \
+  -n ejabberd
+```
+
+2. **Configure Admin User in values.yaml**:
+```yaml
+# Admin ACL configuration
+acl:
+  admin:
+    user:
+      - "admin@localhost"
+
+# Environment variables for admin creation
+env:
+  - name: EJABBERD_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: ejabberd-admin-secret
+        key: admin-password
+  - name: CTL_ON_CREATE
+    value: "register admin localhost ${EJABBERD_ADMIN_PASSWORD}"
+```
+
+3. **Verify Admin User**:
+```shell
+kubectl exec sts/ejabberd -- ejabberdctl registered_users localhost
+```
+
+**Default Admin Credentials** (if using the example above):
+- **Username**: `admin@localhost`
+- **Password**: The value from the `ejabberd-admin-secret`
+
+**Note**: The admin user is created automatically on first deployment. For security, always use a strong password and consider rotating it regularly.
+
+### JWT Authentication
+
+The chart supports JWT authentication for middleware integration. To enable JWT:
+
+1. **Create JWT Secret**:
+```shell
+kubectl create secret generic jwt-secret \
+  --from-literal=jwt-key="$(openssl genrsa 2048 | base64 -w 0)" \
+  -n ejabberd
+```
+
+2. **Configure JWT in values.yaml**:
+```yaml
+# JWT Authentication
+jwt:
+  enabled: true
+  secretName: "jwt-secret"
+  secretKey: "jwt-key"
+  keyPath: "/jwt-key"
+
+authentification:
+  auth_method:
+    - internal
+    - jwt
+  jwt_key: "/jwt-key"
+  jwt_jid_field: "jid"
+```
+
+3. **Middleware Integration**:
+Your middleware can use the same JWT secret for all users:
+```javascript
+// Generate JWT token for any user
+const token = jwt.sign({
+  jid: "user@localhost",  // ejabberd expects 'jid' field
+  exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
+}, jwtSecret);
+
+// Verify JWT token
+const decoded = jwt.verify(token, jwtSecret);
+const userJid = decoded.jid;
+```
+
+**Note**: The JWT secret is mounted at `/jwt-key` in the container. Your middleware should use this secret to sign and verify tokens for all users.
 
 ### Connecting with an XMPP account
 

@@ -43,4 +43,22 @@ statefulSet:
       command:
         - "true"
     periodSeconds: 5
-    failureThreshold: 30 
+    failureThreshold: 30
+
+# Admin ACL configuration
+acl:
+  admin:
+    user:
+      - "admin@localhost"
+
+# Environment variables for admin creation and debugging
+env:
+  - name: EJABBERD_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: ejabberd-admin-secret
+        key: admin-password
+  - name: CTL_ON_CREATE
+    value: "register admin localhost ${EJABBERD_ADMIN_PASSWORD}"
+  - name: CTL_ON_START
+    value: "echo 'Admin user created with password from secret' ; echo 'Admin credentials: admin@localhost / ${EJABBERD_ADMIN_PASSWORD}'" 
