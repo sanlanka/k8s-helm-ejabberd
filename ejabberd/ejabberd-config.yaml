@@ -42,8 +42,36 @@ listen:
       "/admin": ejabberd_web_admin
       "/api": mod_http_api
 
-# Authentication method
-auth_method: internal
+# 1. Use JWT for authentication
+auth_method:
+  - jwt
+
+# 2. Point to your JSON Web Key (JWK) file
+jwt_key: "/opt/ejabberd/conf/jwt-key"
+
+# 3. (Optional) Prevent non-admins from using anything but JWT
+access_rules:
+  local:
+    - allow: local
+  c2s:
+    - deny: blocked
+    - allow
+  announce:
+    - allow: admin
+  configure:
+    - allow: admin
+  muc_create:
+    - allow: local
+  trusted_network:
+    - allow
+  jwt_only:
+    deny: admin
+    allow: all
+
+jwt_auth_only_rule: jwt_only
+
+# 4. (Optional) If your token uses a different claim than "jid"
+# jwt_jid_field: "user_claim"
 
 # Module configuration
 modules:
@@ -73,22 +101,6 @@ modules:
   mod_time: {}
   mod_vcard: {}
   mod_version: {}
-
-# Access rules
-access_rules:
-  local:
-    - allow: local
-  c2s:
-    - deny: blocked
-    - allow
-  announce:
-    - allow: admin
-  configure:
-    - allow: admin
-  muc_create:
-    - allow: local
-  trusted_network:
-    - allow
 
 # Shaper rules
 shaper_rules:
