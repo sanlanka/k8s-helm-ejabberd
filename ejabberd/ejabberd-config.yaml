@@ -9,6 +9,17 @@ hosts:
 # Logging level
 loglevel: info
 
+# Use Mnesia (the default engine)
+default_db: mnesia
+
+# Persist module queues to files under your Mnesia dir
+queue_type: file
+queue_dir: "/opt/ejabberd/database/queues"
+
+# (Optional) clustering config if you run multiple pods
+# cluster_nodes: ["ejabberd@node1.example.com", "ejabberd@node2.example.com"]
+# cluster_backend: pg2
+
 # Listen configuration
 listen:
   # XMPP client connections
