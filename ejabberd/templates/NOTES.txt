@@ -31,11 +31,17 @@
    To check if the configuration is loaded correctly:
    kubectl exec -it $(kubectl get pods -l "app.kubernetes.io/name={{ include "ejabberd.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}") -- cat /opt/ejabberd/conf/ejabberd.yml
 
-3. Access ejabberd services:
+3. JWT Secret:
+   A JWT signing secret has been created for mod_http_api:
+   kubectl get secret {{ include "ejabberd.fullname" . }}-jwt-key
+   
+   The secret is mounted as JWT_SECRET environment variable in the container.
+
+4. Access ejabberd services:
    - XMPP Client: {{ .Values.service.port }}
    - XMPP Server-to-Server: 5269
    - HTTP Admin: 5280
 
-4. Admin Interface:
+5. Admin Interface:
    Access the admin interface at http://<your-host>:5280/admin/
    Default credentials: admin@{{ .Values.ejabberd.domain }}/{{ .Values.ejabberd.admin.password }}

@@ -36,6 +36,12 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-jwt-key
+                  key: jwt-key
           ports:
             {{- if .Values.service.ports }}
             {{- range .Values.service.ports }}
