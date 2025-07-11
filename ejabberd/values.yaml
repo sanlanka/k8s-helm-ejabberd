@@ -734,6 +734,10 @@ authentification: {}
 # JWT Authentication configuration
 jwt:
   enabled: false
+  # Use hardcoded JWT secret instead of Kubernetes secret
+  useHardcodedSecret: false
+  hardcodedSecret: "my-secret-key"
+  # Kubernetes secret configuration (used when useHardcodedSecret is false)
   secretName: "jwt-secret"
   secretKey: "jwt-key"
   keyPath: "/jwt-key"

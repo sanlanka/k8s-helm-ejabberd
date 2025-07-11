@@ -2,33 +2,26 @@
 
 set -e
 
-echo "🚀 Setting up ejabberd and running tests..."
-echo "==========================================="
+echo "🚀 Setting up ejabberd with hardcoded JWT secret..."
+echo "=================================================="
 
-JWT_SECRET_NAME="jwt-secret"
-JWT_SECRET_KEY="jwt-key"
-JWT_KEY_PATH="/jwt-key"
-
-# Generate a random JWT key
-JWT_KEY_VALUE=$(openssl rand -hex 32)
-
-# Create the secret directly from the generated key
-kubectl delete secret $JWT_SECRET_NAME --ignore-not-found
-kubectl create secret generic $JWT_SECRET_NAME --from-literal=$JWT_SECRET_KEY="$JWT_KEY_VALUE"
+# Use hardcoded JWT secret
+JWT_SECRET_VALUE="my-secret-key"
 
 echo "🔐 JWT Configuration:"
-echo "   - JWT Secret Key: $JWT_KEY_VALUE"
+echo "   - JWT Secret Key: $JWT_SECRET_VALUE"
 echo "   - JWT JID Field: jid"
+echo "   - Using hardcoded secret (development mode)"
 echo ""
 echo "📋 MIDDLEWARE CONFIGURATION:"
 echo "   Your middleware needs this JWT secret key to generate tokens:"
-echo "   $JWT_KEY_VALUE"
+echo "   $JWT_SECRET_VALUE"
 echo ""
 echo "   Example middleware code:"
 echo "   \`\`\`python"
 echo "   import jwt"
 echo "   payload = {'jid': 'user@localhost'}"
-echo "   token = jwt.encode(payload, '$JWT_KEY_VALUE', algorithm='HS256')"
+echo "   token = jwt.encode(payload, '$JWT_SECRET_VALUE', algorithm='HS256')"
 echo "   \`\`\`"
 echo ""
 

@@ -175,6 +175,10 @@ data:
     {{- toYaml .Values.authentification | nindent 4 }}
     {{- end }}
 
+    {{- if and .Values.jwt.enabled .Values.jwt.useHardcodedSecret }}
+    jwt_key: {{ .Values.jwt.hardcodedSecret | quote }}
+    {{- end }}
+
     {{- if .Values.ldap }}
     {{- toYaml .Values.ldap | nindent 4 }}
     {{- end }}

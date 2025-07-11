@@ -245,7 +245,9 @@ kubectl exec sts/ejabberd -- ejabberdctl registered_users localhost
 
 ### JWT Authentication
 
-The chart supports JWT authentication for middleware integration. To enable JWT:
+The chart supports JWT authentication for middleware integration. There are two ways to configure JWT:
+
+#### Option 1: Using Kubernetes Secret (Recommended for Production)
 
 1. **Create JWT Secret**:
 ```shell
@@ -259,6 +261,7 @@ kubectl create secret generic jwt-secret \
 # JWT Authentication
 jwt:
   enabled: true
+  useHardcodedSecret: false  # Use Kubernetes secret
   secretName: "jwt-secret"
   secretKey: "jwt-key"
   keyPath: "/jwt-key"
@@ -271,7 +274,29 @@ authentification:
   jwt_jid_field: "jid"
 ```
 
-3. **Middleware Integration**:
+#### Option 2: Using Hardcoded Secret (For Development/Testing)
+
+1. **Configure JWT in values.yaml**:
+```yaml
+# JWT Authentication with hardcoded secret
+jwt:
+  enabled: true
+  useHardcodedSecret: true
+  hardcodedSecret: "my-secret-key"
+  # These are ignored when useHardcodedSecret is true
+  secretName: "jwt-secret"
+  secretKey: "jwt-key"
+  keyPath: "/jwt-key"
+
+authentification:
+  auth_method:
+    - internal
+    - jwt
+  jwt_jid_field: "jid"
+```
+
+#### Middleware Integration
+
 Your middleware can use the same JWT secret for all users:
 ```javascript
 // Generate JWT token for any user
@@ -285,7 +310,11 @@ const decoded = jwt.verify(token, jwtSecret);
 const userJid = decoded.jid;
 ```
 
-**Note**: The JWT secret is mounted at `/jwt-key` in the container. Your middleware should use this secret to sign and verify tokens for all users.
+**Notes**: 
+- When using Kubernetes secrets, the JWT secret is mounted at `/jwt-key` in the container
+- When using hardcoded secrets, the secret is directly embedded in the ejabberd configuration
+- Your middleware should use the same secret to sign and verify tokens for all users
+- For production environments, always use Kubernetes secrets instead of hardcoded values
 
 ### Connecting with an XMPP account
 

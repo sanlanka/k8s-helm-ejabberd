@@ -13,16 +13,19 @@ listen:
         /api: mod_http_api
         /admin: ejabberd_web_admin
 
-# JWT Authentication (temporarily disabled)
+# JWT Authentication with hardcoded secret
 jwt:
-  enabled: false
+  enabled: true
+  useHardcodedSecret: true
+  hardcodedSecret: "99c555540dcff56b663df985c17ee3603268b037aca72035f159dec7a1e661de"
   secretName: "jwt-secret"
   secretKey: "jwt-key"
   keyPath: "/jwt-key"
 
 authentification:
   auth_method:
-    - internal
+    - jwt
+  jwt_jid_field: "jid"
 
 # Use working probes instead of the broken ones
 statefulSet:
