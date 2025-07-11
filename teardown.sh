@@ -4,8 +4,9 @@ set -e
 echo "🧹 Tearing down ejabberd deployment..."
 echo "======================================"
 
-# Note: No JWT secret to delete when using hardcoded secret
-echo "ℹ️  Using hardcoded JWT secret - no Kubernetes secret to clean up"
+# Delete JWT secret
+echo "🗑️  Deleting JWT secret..."
+kubectl delete secret jwt-secret --ignore-not-found
 
 # Kill any existing port forwarding
 echo "🔌 Stopping port forwarding..."
@@ -33,5 +34,6 @@ echo "✅ Teardown complete!"
 echo "   - Helm release uninstalled"
 echo "   - All pods terminated"
 echo "   - Port forwarding stopped"
+echo "   - JWT secret deleted"
 echo ""
-echo "🚀 To set up again, run: ./setup-jwt-hardcoded.sh" 
+echo "🚀 To set up again, run: ./setup-and-test.sh" 

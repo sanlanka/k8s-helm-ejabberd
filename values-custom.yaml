@@ -13,11 +13,11 @@ listen:
         /api: mod_http_api
         /admin: ejabberd_web_admin
 
-# JWT Authentication with hardcoded secret
+# JWT Authentication with Kubernetes secret
 jwt:
   enabled: true
   useHardcodedSecret: true
-  hardcodedSecret: "99c555540dcff56b663df985c17ee3603268b037aca72035f159dec7a1e661de"
+  hardcodedSecret: "my-deep-secret"
   secretName: "jwt-secret"
   secretKey: "jwt-key"
   keyPath: "/jwt-key"
