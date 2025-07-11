@@ -154,3 +154,6 @@ ejabberd:
     # name: ""
     # user: ""
     # password: ""
+  
+  # Configuration file - always loaded from ejabberd-config.yaml
+  configFile: "ejabberd-config.yaml"

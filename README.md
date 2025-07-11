@@ -61,11 +61,135 @@ helm upgrade --install ejabberd ./ejabberd -f values-prod.yaml
 
 The main configuration is in `ejabberd/values.yaml`:
 
-- **Image**: `processone/ejabberd:25.07`
+- **Image**: `processone/ejabberd:latest`
 - **Ports**: 
   - 5222 (XMPP client connections)
   - 5269 (XMPP server-to-server)
   - 5280 (HTTP admin interface)
+
+### ejabberd Configuration File
+
+The chart automatically loads the ejabberd configuration from `ejabberd-config.yaml`. This allows you to use the full power of ejabberd's configuration system as documented at https://docs.ejabberd.im/admin/configuration/.
+
+#### Configuration File Location
+
+The configuration file is always loaded from:
+```
+ejabberd-config.yaml
+```
+
+This file should be in the same directory as your Helm chart and contains the ejabberd YAML configuration.
+
+#### Example Configuration
+
+The `ejabberd-config.yaml` file contains a complete ejabberd configuration:
+
+```yaml
+# Custom ejabberd configuration
+hosts:
+  - "xmpp.example.com"
+  - "chat.example.com"
+
+loglevel: info
+
+listen:
+  -
+    port: 5222
+    module: ejabberd_c2s
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+    starttls_required: true
+  -
+    port: 5269
+    module: ejabberd_s2s_in
+    max_stanza_size: 524288
+  -
+    port: 5280
+    module: ejabberd_http
+    request_handlers:
+      "/admin": ejabberd_web_admin
+      "/api": mod_http_api
+      "/": ejabberd_http
+
+modules:
+  mod_adhoc: {}
+  mod_admin_extra: {}
+  mod_announce:
+    access: announce
+  mod_http_api:
+    api_key: "your-secure-api-key-here"
+  mod_http_upload: {}
+  mod_mam:
+    assume_mam_usage: true
+    default: roster
+  mod_muc:
+    access:
+      - allow
+    access_admin:
+      - allow: admin
+    access_create: muc_create
+    access_persistent: muc_create
+    access_mam:
+      - allow
+    default_room_jid: ""
+    default_room_options:
+      mam: true
+      persistent: true
+  mod_offline:
+    access_max_user_messages: max_user_offline_messages
+  mod_ping: {}
+  mod_roster:
+    versioning: true
+  mod_vcard: {}
+  mod_version:
+    show_os: false
+
+auth_method: internal
+
+access_rules:
+  local:
+    - allow: local
+  c2s:
+    - deny: blocked
+    - allow
+  announce:
+    - allow: admin
+  configure:
+    - allow: admin
+  muc_create:
+    - allow: local
+
+shaper_rules:
+  max_user_sessions: 10
+  max_user_offline_messages:
+    - 5000: admin
+    - 100
+  c2s_shaper:
+    - none: admin
+    - normal
+  s2s_shaper: fast
+```
+
+#### Customizing the Configuration
+
+To customize the ejabberd configuration:
+
+1. Edit the `ejabberd-config.yaml` file
+2. Modify the configuration according to your needs
+3. Deploy the chart - it will automatically use your updated configuration
+
+```bash
+# Edit the configuration
+vim ejabberd-config.yaml
+
+# Deploy with your custom configuration
+helm install ejabberd ./ejabberd
+```
+
+#### Configuration File Location Inside Container
+
+When deployed, the configuration file is mounted at `/opt/ejabberd/conf/ejabberd.yml` inside the container.
 
 ### Production Configuration
 
@@ -184,9 +308,8 @@ If you need to customize the ejabberd image:
 
 Add custom ejabberd configurations by:
 
-1. Creating ConfigMaps in `ejabberd/templates/`
-2. Mounting them as volumes in the deployment
-3. Updating the `values.yaml` with configuration options
+1. Editing the `ejabberd-config.yaml` file
+2. The configuration is automatically loaded and mounted
 
 ## Troubleshooting
 
@@ -209,6 +332,18 @@ kubectl port-forward svc/ejabberd 5222:5222
 kubectl port-forward svc/ejabberd 5280:5280
 ```
 
+### Verify Configuration File
+```bash
+# Check if the ConfigMap was created
+kubectl get configmap ejabberd-config
+
+# View the configuration content
+kubectl get configmap ejabberd-config -o yaml
+
+# Check if the file is mounted correctly
+kubectl exec -it ejabberd-xxx -- cat /home/ejabberd/conf/ejabberd.yml
+```
+
 ## Security Considerations
 
 - Change default admin credentials
@@ -216,6 +351,7 @@ kubectl port-forward svc/ejabberd 5280:5280
 - Configure TLS certificates
 - Set up network policies
 - Use external database for production
+- Secure your API keys and sensitive configuration
 
 ## Contributing
 

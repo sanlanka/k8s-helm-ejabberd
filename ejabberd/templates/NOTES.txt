@@ -20,3 +20,22 @@
   echo "Visit http://127.0.0.1:8080 to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
 {{- end }}
+
+2. Configuration File:
+   Your ejabberd is using the configuration file from {{ .Values.ejabberd.configFile }}
+   The configuration is mounted at /opt/ejabberd/conf/ejabberd.yml
+   
+   To view the configuration:
+   kubectl get configmap {{ include "ejabberd.fullname" . }}-config -o yaml
+   
+   To check if the configuration is loaded correctly:
+   kubectl exec -it $(kubectl get pods -l "app.kubernetes.io/name={{ include "ejabberd.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}") -- cat /opt/ejabberd/conf/ejabberd.yml
+
+3. Access ejabberd services:
+   - XMPP Client: {{ .Values.service.port }}
+   - XMPP Server-to-Server: 5269
+   - HTTP Admin: 5280
+
+4. Admin Interface:
+   Access the admin interface at http://<your-host>:5280/admin/
+   Default credentials: admin@{{ .Values.ejabberd.domain }}/{{ .Values.ejabberd.admin.password }}
