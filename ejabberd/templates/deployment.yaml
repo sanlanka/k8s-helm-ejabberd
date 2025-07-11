@@ -65,6 +65,10 @@ spec:
               mountPath: /opt/ejabberd/conf/ejabberd.yml
               subPath: ejabberd.yml
               readOnly: true
+            - name: jwt-secret
+              mountPath: /opt/ejabberd/conf/jwt-key
+              subPath: jwt-key
+              readOnly: true
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -72,6 +76,9 @@ spec:
         - name: ejabberd-config
           configMap:
             name: {{ include "ejabberd.fullname" . }}-config
+        - name: jwt-secret
+          secret:
+            secretName: {{ include "ejabberd.fullname" . }}-jwt-key
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

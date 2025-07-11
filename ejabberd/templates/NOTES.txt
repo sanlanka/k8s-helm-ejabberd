@@ -35,7 +35,12 @@
    A JWT signing secret has been created for mod_http_api:
    kubectl get secret {{ include "ejabberd.fullname" . }}-jwt-key
    
-   The secret is mounted as JWT_SECRET environment variable in the container.
+   The secret is available as:
+   - Environment variable: JWT_SECRET
+   - File: /opt/ejabberd/conf/jwt-key
+   
+   To view the JWT key file:
+   kubectl exec -it $(kubectl get pods -l "app.kubernetes.io/name={{ include "ejabberd.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}") -- cat /opt/ejabberd/conf/jwt-key
 
 4. Access ejabberd services:
    - XMPP Client: {{ .Values.service.port }}
