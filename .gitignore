@@ -1,46 +1,28 @@
-# Helm
-*.tgz
-charts/
-.helmignore
-
-# Kubernetes
-*.kubeconfig
-kubeconfig
-
-# Logs
-*.log
-logs/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Temporary files
+# Kubernetes
 *.tmp
-*.temp
-.tmp/
-.temp/
+*.orig
 
-# Local environment files
-.env
-.env.local
-.env.*.local
+# Helm
+*.tgz
+charts/
 
-# Dependencies
-node_modules/
+# Skaffold
+.skaffold-*
 
-# Test results
-test-results/
-coverage/ 
+# Secrets (be careful with these)
+values-secrets.yaml
+secret-*.yaml
+
+# Local development
+*.local.yaml
+.env 

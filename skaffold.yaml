@@ -1,0 +1,51 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: ejabberd
+build:
+  artifacts: []
+  # If you need to extend the base ejabberd image, uncomment the following:
+  # artifacts:
+  #   - image: ejabberd-custom
+  #     docker:
+  #       dockerfile: Dockerfile
+deploy:
+  helm:
+    releases:
+      - name: ejabberd
+        chartPath: ./ejabberd
+        valuesFiles:
+          - ejabberd/values.yaml
+profiles:
+  - name: dev
+    activation:
+      - command: dev
+    deploy:
+      kubeContext: docker-desktop
+      helm:
+        releases:
+          - name: ejabberd
+            chartPath: ./ejabberd
+            valuesFiles:
+              - ejabberd/values.yaml
+            setValues:
+              replicaCount: 2
+              service.type: LoadBalancer
+              ingress.enabled: false
+  - name: prod
+    activation:
+      - command: run
+    deploy:
+      kubeContext: docker-desktop  # Update with your GKE context
+      helm:
+        releases:
+          - name: ejabberd
+            chartPath: ./ejabberd
+            valuesFiles:
+              - ejabberd/values.yaml
+              - values-prod.yaml  # Create this file for production overrides
+            setValues:
+              replicaCount: 3
+              service.type: ClusterIP
+              ingress.enabled: true
+              autoscaling.enabled: true 

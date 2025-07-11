@@ -1,273 +1,226 @@
-# ejabberd Helm Chart
+# ejabberd Kubernetes Helm Chart
 
-A Kubernetes Helm chart for deploying ejabberd with JWT authentication support.
+A minimal Helm chart for deploying ejabberd XMPP server on Kubernetes with Skaffold integration for local development and CI/CD.
 
-## 1. Setup and Teardown
+## Prerequisites
 
-### Quick Start (Recommended)
-```bash
-# Deploy ejabberd with hardcoded JWT secret
-./setup-jwt-hardcoded.sh
+- Kubernetes cluster (local or GKE)
+- [Helm 3.x](https://helm.sh/docs/intro/install/)
+- [Skaffold](https://skaffold.dev/docs/install/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
-# Clean up everything
-./teardown.sh
-```
+## Quick Start
 
-The setup script automatically:
-- Uses hardcoded JWT secret "my-secret-key"
-- Deploys the Helm chart with JWT authentication
-- Runs tests to verify functionality
-- Provides easy access to the JWT secret
+### 1. Local Development with Skaffold
 
-### Alternative Setup (Kubernetes Secrets)
-```bash
-# Deploy ejabberd with Kubernetes JWT secret
-./setup-and-test.sh
-
-# Clean up everything
-./teardown.sh
-```
-
-### Manual Setup
-
-#### Option 1: Hardcoded JWT Secret (Development)
-```bash
-# Deploy with hardcoded JWT secret
-helm install ejabberd ./ejabberd -f values-custom.yaml
-
-# Or use the example configuration
-helm install ejabberd ./ejabberd -f ejabberd/values-jwt-example.yaml
-```
-
-#### Option 2: Kubernetes JWT Secret (Production)
-```bash
-# Create JWT secret
-kubectl create secret generic jwt-secret --from-literal=jwt-key="your-secret-key"
-
-# Deploy with Helm (requires updating values-custom.yaml to use Kubernetes secrets)
-helm install ejabberd ./ejabberd -f values-custom.yaml
-```
-
-## 2. Helm Details
-
-### Configuration
-
-The chart supports two JWT configuration approaches:
-
-#### Option 1: Hardcoded JWT Secret (Development)
-Use `ejabberd/values-jwt-example.yaml`:
-
-```yaml
-# JWT Authentication with hardcoded secret
-jwt:
-  enabled: true
-  useHardcodedSecret: true
-  hardcodedSecret: "my-secret-key"
-  secretName: "jwt-secret"
-  secretKey: "jwt-key"
-  keyPath: "/jwt-key"
-
-authentification:
-  auth_method:
-    - jwt
-  jwt_jid_field: "jid"
-```
-
-#### Option 2: Kubernetes JWT Secret (Production)
-Use `values-custom.yaml`:
-
-```yaml
-# JWT Authentication with Kubernetes secret
-jwt:
-  enabled: true
-  useHardcodedSecret: false
-  secretName: "jwt-secret"
-  secretKey: "jwt-key"
-  keyPath: "/jwt-key"
-
-authentification:
-  auth_method:
-    - jwt
-  jwt_jid_field: "jid"
-```
-
-#### Health Probes (Both Options)
-```yaml
-statefulSet:
-  startupProbe:
-    exec:
-      command: ["true"]
-    initialDelaySeconds: 10
-    periodSeconds: 5
-    failureThreshold: 30
-  readinessProbe:
-    exec:
-      command: ["true"]
-    periodSeconds: 5
-  livenessProbe:
-    exec:
-      command: ["true"]
-    periodSeconds: 5
-    failureThreshold: 30
-```
-
-### Key Configuration Options
-- `hosts`: List of XMPP domains (default: `localhost`)
-- `service.type`: Service type (default: `LoadBalancer`)
-- `replicaCount`: Number of ejabberd instances
-- `resources`: CPU/memory limits and requests
-
-## 3. Tests
-
-The test suite validates:
-- Basic ejabberd functionality
-- User registration and management
-- JWT authentication
-- API endpoints
-
-Run tests manually:
-```bash
-# Run all tests
-hurl tests/*.hurl
-
-# Run specific test
-hurl tests/08_jwt_comprehensive_test.hurl
-```
-
-## 4. How to Talk to ejabberd
-
-### JWT Authentication
-
-The chart supports two JWT authentication approaches:
-
-#### Option 1: Hardcoded JWT Secret (Development)
-When using the hardcoded approach, the JWT secret is "my-secret-key":
-
-**Generate JWT Token (Python):**
-```python
-import jwt
-
-# Hardcoded secret from the chart configuration
-secret_key = "my-secret-key"
-    
-payload = {
-    "jid": "testuser@localhost",
-    "exp": 1735689600  # Optional expiration
-}
-
-token = jwt.encode(payload, secret_key, algorithm="HS256")
-print(f"JWT Token: {token}")
-```
-
-**Generate JWT Token (Node.js):**
-```javascript
-const jwt = require('jsonwebtoken');
-
-const secret_key = "my-secret-key";
-const payload = {
-    jid: "testuser@localhost",
-    exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour
-};
-
-const token = jwt.sign(payload, secret_key);
-console.log(`JWT Token: ${token}`);
-```
-
-#### Option 2: Kubernetes JWT Secret (Production)
-When using Kubernetes secrets, the setup script generates and displays the secret:
+For local development with live updates:
 
 ```bash
-📋 MIDDLEWARE CONFIGURATION:
-   Your middleware needs this JWT secret key to generate tokens:
-   31767a4abad3e213e2d35366fdff7115c69762e7f7171028e259ca1578bd503b
+# Start local development
+skaffold dev
+
+# Or specify the dev profile explicitly
+skaffold dev --profile=dev
 ```
 
-### How Middleware Gets the JWT Secret
+This will:
+- Deploy ejabberd to your local Kubernetes cluster
+- Use LoadBalancer service type for easy access
+- Watch for changes and redeploy automatically
 
-**For Hardcoded Secret:**
-- Secret is always "my-secret-key"
-- No need to store or manage secrets
-- Perfect for development and testing
+### 2. Manual Helm Deployment
 
-**For Kubernetes Secret:**
-- Secret is generated by the setup script
-- Store securely in your middleware configuration
-- Use environment variables or secure config files
+If you prefer using Helm directly:
 
-**XMPP Client Connection:**
-- Username: `testuser` (from jid: testuser@localhost)
-- Password: Use the generated JWT token (not the secret key)
-- Server: `localhost` (or your server address)
-- Port: `5222`
-
-**API Access:**
 ```bash
-# Check status
-curl http://localhost:5280/api/status
+# Install the chart
+helm install ejabberd ./ejabberd
 
-# With JWT authentication
-curl -H "Authorization: Bearer <your-jwt-token>" \
-     http://localhost:5280/api/status
+# Upgrade the deployment
+helm upgrade ejabberd ./ejabberd
+
+# Uninstall
+helm uninstall ejabberd
 ```
 
-### Connection Details
-- **XMPP Client (c2s)**: `localhost:5222`
-- **XMPP Server (s2s)**: `localhost:5269`
-- **HTTP API**: `http://localhost:5280`
-- **HTTPS API**: `https://localhost:5443`
+### 3. Production Deployment
 
-## 5. Production Deployment
+For production deployment:
 
-### Security Considerations
-- Change default JWT secret key
-- Use proper TLS certificates
-- Configure firewall rules
-- Set resource limits
-- Use persistent storage for database
-
-### Production Values
-```yaml
-# values-prod.yaml
-hosts:
-  - "your-domain.com"
-
-certFiles:
-  secretName:
-    - "your-tls-cert-secret"
-
-service:
-  type: LoadBalancer
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: nlb
-
-resources:
-  limits:
-    cpu: 1000m
-    memory: 2Gi
-  requests:
-    cpu: 500m
-    memory: 1Gi
-
-replicaCount: 3
-   ```
-
-### Deployment Commands
 ```bash
 # Deploy to production
-helm install ejabberd-prod ./ejabberd -f values-prod.yaml
+skaffold run --profile=prod
 
-# Upgrade existing deployment
-helm upgrade ejabberd-prod ./ejabberd -f values-prod.yaml
-
-# Rollback if needed
-helm rollback ejabberd-prod
+# Or with plain Helm
+helm upgrade --install ejabberd ./ejabberd -f values-prod.yaml
 ```
 
-### Monitoring
-- Check pod logs: `kubectl logs ejabberd-0`
-- Monitor resource usage: `kubectl top pods`
-- Check service status: `kubectl get svc ejabberd`
+## Configuration
 
----
+### Basic Configuration
 
-For more information, see the [official ejabberd documentation](https://docs.ejabberd.im/). 
+The main configuration is in `ejabberd/values.yaml`:
+
+- **Image**: `processone/ejabberd:25.07`
+- **Ports**: 
+  - 5222 (XMPP client connections)
+  - 5269 (XMPP server-to-server)
+  - 5280 (HTTP admin interface)
+
+### Production Configuration
+
+Production overrides are in `values-prod.yaml`:
+
+- Increased resource limits
+- Horizontal Pod Autoscaling
+- Ingress configuration
+- External database support
+
+### Custom Values
+
+Create your own values file:
+
+```bash
+cp ejabberd/values.yaml values-custom.yaml
+# Edit values-custom.yaml with your settings
+helm install ejabberd ./ejabberd -f values-custom.yaml
+```
+
+## Accessing ejabberd
+
+### Local Development
+
+When using `skaffold dev`, the service will be exposed as LoadBalancer. Get the external IP:
+
+```bash
+kubectl get svc ejabberd
+```
+
+### Production
+
+Configure your ingress and DNS to point to the cluster.
+
+### Admin Interface
+
+Access the admin interface at `http://<your-host>:5280/admin/`
+
+Default credentials (change in production):
+- Username: `admin@ejabberd.local`
+- Password: `admin123`
+
+## Skaffold Profiles
+
+### `dev` Profile
+- Single replica
+- LoadBalancer service
+- Suitable for local development
+
+### `prod` Profile  
+- Multiple replicas
+- ClusterIP service
+- Ingress enabled
+- Autoscaling enabled
+- Uses production values
+
+## CI/CD Pipeline
+
+### GitHub Actions Example
+
+```yaml
+name: Deploy ejabberd
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials your-cluster --zone us-central1-c
+          
+      - name: Install Skaffold
+        run: |
+          curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+          sudo install skaffold /usr/local/bin/
+          
+      - name: Deploy with Skaffold
+        run: skaffold run --profile=prod
+```
+
+### Manual CI/CD with Helm
+
+```bash
+# Build and push custom image (if needed)
+docker build -t gcr.io/your-project/ejabberd:$TAG .
+docker push gcr.io/your-project/ejabberd:$TAG
+
+# Deploy with Helm
+helm upgrade --install ejabberd ./ejabberd \
+  --set image.tag=$TAG \
+  -f values-prod.yaml
+```
+
+## Customization
+
+### Extending the Image
+
+If you need to customize the ejabberd image:
+
+1. Uncomment the build section in `skaffold.yaml`
+2. Modify the `Dockerfile`
+3. Skaffold will automatically build and deploy your custom image
+
+### Adding Configurations
+
+Add custom ejabberd configurations by:
+
+1. Creating ConfigMaps in `ejabberd/templates/`
+2. Mounting them as volumes in the deployment
+3. Updating the `values.yaml` with configuration options
+
+## Troubleshooting
+
+### Check Pod Status
+```bash
+kubectl get pods
+kubectl describe pod ejabberd-xxx
+kubectl logs ejabberd-xxx
+```
+
+### Check Services
+```bash
+kubectl get svc
+kubectl describe svc ejabberd
+```
+
+### Port Forwarding for Testing
+```bash
+kubectl port-forward svc/ejabberd 5222:5222
+kubectl port-forward svc/ejabberd 5280:5280
+```
+
+## Security Considerations
+
+- Change default admin credentials
+- Use external secrets management in production
+- Configure TLS certificates
+- Set up network policies
+- Use external database for production
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes
+4. Test with `skaffold dev`
+5. Submit a pull request 
