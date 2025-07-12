@@ -41,6 +41,8 @@ listen:
     request_handlers:
       "/admin": ejabberd_web_admin
       "/api": mod_http_api
+    web_admin: true
+    http_bind: true
 
 # 1. Use JWT for authentication
 auth_method:
