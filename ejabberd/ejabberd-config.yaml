@@ -69,6 +69,8 @@ access_rules:
   jwt_only:
     deny: admin
     allow: all
+  pubsub_createnode:
+    - allow: local
 
 jwt_auth_only_rule: jwt_only
 
@@ -82,6 +84,7 @@ modules:
   mod_announce:
     access: announce
   mod_disco: {}
+  mod_caps: {}
   mod_http_api: {}
   mod_last: {}
   mod_muc:
@@ -103,6 +106,19 @@ modules:
   mod_time: {}
   mod_vcard: {}
   mod_version: {}
+  mod_mam: {}
+  mod_http_upload:
+    put_url: https://@HOST@:5443/upload
+    docroot: "/opt/ejabberd/upload"
+    max_size: 10485760
+
+  mod_pubsub:
+    access_createnode: pubsub_createnode
+    plugins:
+      - flat
+      - pep
+  mod_push: {}
+  mod_muc_log: {}
 
 # Shaper rules
 shaper_rules:
