@@ -44,14 +44,23 @@ listen:
     web_admin: true
     http_bind: true
 
-# 1. Use JWT for authentication
+# 1. Use both JWT and internal authentication
 auth_method:
+  - internal
   - jwt
 
 # 2. Point to your JSON Web Key (JWK) file
 jwt_key: "/opt/ejabberd/conf/jwt-key"
 
-# 3. (Optional) Prevent non-admins from using anything but JWT
+# ACL definitions
+acl:
+  admin:
+    user:
+      - "admin@ejabberd.local"
+  local:
+    user_regexp: ""
+
+# 3. Access rules
 access_rules:
   local:
     - allow: local
@@ -67,6 +76,9 @@ access_rules:
     - allow: all
   muc_admin:
     - allow: admin
+  # Allow registration for all users
+  register:
+    - allow: all
   trusted_network:
     - allow
   jwt_only:
@@ -106,6 +118,9 @@ modules:
   mod_ping: {}
   mod_privacy: {}
   mod_private: {}
+  # Enable registration module
+  mod_register:
+    access: register
   mod_roster:
     versioning: true
   mod_s2s_dialback: {}
@@ -141,4 +156,4 @@ shaper_rules:
 # Shapers
 shaper:
   normal: 1000
-  fast: 50000 
+  fast: 50000

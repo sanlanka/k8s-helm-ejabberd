@@ -30,6 +30,58 @@ spec:
       serviceAccountName: {{ include "ejabberd.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: create-admin-user
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-admin
+                  key: admin-user
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-admin
+                  key: admin-password
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Start ejabberd in background
+              /opt/ejabberd/bin/ejabberdctl start
+              
+              # Wait for ejabberd to be ready
+              echo "Waiting for ejabberd to start..."
+              while ! /opt/ejabberd/bin/ejabberdctl status > /dev/null 2>&1; do
+                sleep 2
+              done
+              
+              # Create admin user
+              echo "Creating admin user..."
+              /opt/ejabberd/bin/ejabberdctl register "$ADMIN_USER" ejabberd.local "$ADMIN_PASSWORD"
+              
+              # Stop ejabberd
+              /opt/ejabberd/bin/ejabberdctl stop
+              
+              # Wait for ejabberd to stop
+              while /opt/ejabberd/bin/ejabberdctl status > /dev/null 2>&1; do
+                sleep 1
+              done
+              
+              echo "Admin user created successfully"
+          volumeMounts:
+            - name: ejabberd-config
+              mountPath: /opt/ejabberd/conf/ejabberd.yml
+              subPath: ejabberd.yml
+              readOnly: true
+            - name: jwt-secret
+              mountPath: /opt/ejabberd/conf/jwt-key
+              subPath: jwt-key
+              readOnly: true
+            - name: ejabberd-data
+              mountPath: /opt/ejabberd/database
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -69,6 +121,8 @@ spec:
               mountPath: /opt/ejabberd/conf/jwt-key
               subPath: jwt-key
               readOnly: true
+            - name: ejabberd-data
+              mountPath: /opt/ejabberd/database
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -79,6 +133,8 @@ spec:
         - name: jwt-secret
           secret:
             secretName: {{ include "ejabberd.fullname" . }}-jwt-key
+        - name: ejabberd-data
+          emptyDir: {}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

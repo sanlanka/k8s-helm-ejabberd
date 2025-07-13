@@ -67,6 +67,50 @@ The main configuration is in `ejabberd/values.yaml`:
   - 5269 (XMPP server-to-server)
   - 5280 (HTTP admin interface)
 
+### Kubernetes Secrets
+
+The chart automatically creates two secrets:
+
+1. **JWT Secret** (`ejabberd-jwt-key`):
+   - Contains JWT signing key for mod_http_api
+   - Automatically generated random key
+   - Available as environment variable `JWT_SECRET`
+
+2. **Admin User Secret** (`ejabberd-admin`):
+   - Contains admin user credentials
+   - Username: `admin@ejabberd.local`
+   - Password: `admin123` (configurable in values.yaml)
+   - Used by init container to create admin user
+
+```bash
+# View the secrets
+kubectl get secrets ejabberd-jwt-key ejabberd-admin
+
+# View admin credentials (base64 encoded)
+kubectl get secret ejabberd-admin -o yaml
+```
+
+### MUC (Multi-User Chat) Configuration
+
+The chart includes full MUC support with the following features:
+
+- **MUC Service**: `conference.ejabberd.local`
+- **Access Control**: Anyone can create and join rooms
+- **Admin Access**: Admin users can manage all rooms via HTTP API
+- **Persistent Rooms**: Rooms persist by default
+- **Public Rooms**: Rooms are public and discoverable
+
+Key MUC modules configured:
+- `mod_muc`: Core MUC functionality
+- `mod_muc_admin`: Admin API for room management
+
+Test MUC functionality:
+```bash
+# Run the MUC test suite
+cd ejabberd/tests
+python test_muc_admin.py
+```
+
 ### ejabberd Configuration File
 
 The chart automatically loads the ejabberd configuration from `ejabberd-config.yaml`. This allows you to use the full power of ejabberd's configuration system as documented at https://docs.ejabberd.im/admin/configuration/.
@@ -228,9 +272,31 @@ Configure your ingress and DNS to point to the cluster.
 
 Access the admin interface at `http://<your-host>:5280/admin/`
 
-Default credentials (change in production):
+Default admin credentials (automatically created):
 - Username: `admin@ejabberd.local`
 - Password: `admin123`
+
+The admin user is automatically created during pod startup via an init container and stored in the ejabberd internal database.
+
+### HTTP API Access
+
+The ejabberd HTTP API is available at `http://<your-host>:5280/api/` and requires Basic Authentication using the admin credentials above.
+
+Example API calls:
+```bash
+# Get server status
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/status
+
+# Create a MUC room
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/create_room \
+  -H "Content-Type: application/json" \
+  -d '{"name": "general", "service": "conference.ejabberd.local", "host": "ejabberd.local"}'
+
+# List online MUC rooms
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/muc_online_rooms \
+  -H "Content-Type: application/json" \
+  -d '{"service": "conference.ejabberd.local"}'
+```
 
 ## Skaffold Profiles
 
@@ -311,6 +377,31 @@ Add custom ejabberd configurations by:
 1. Editing the `ejabberd-config.yaml` file
 2. The configuration is automatically loaded and mounted
 
+## Admin User Bootstrap
+
+The chart includes an init container that automatically creates the admin user during pod startup:
+
+1. **Init Container Process**:
+   - Starts ejabberd temporarily
+   - Creates admin user with credentials from secret
+   - Stops ejabberd cleanly
+   - Passes control to main container
+
+2. **Admin User Details**:
+   - JID: `admin@ejabberd.local`
+   - Password: `admin123` (configurable)
+   - Role: Full admin privileges
+   - Database: Stored in ejabberd internal database
+
+3. **Troubleshooting Admin Creation**:
+```bash
+# Check init container logs
+kubectl logs <pod-name> -c create-admin-user
+
+# Verify admin user was created
+kubectl exec -it <pod-name> -- /opt/ejabberd/bin/ejabberdctl registered_users ejabberd.local
+```
+
 ## Troubleshooting
 
 ### Check Pod Status
@@ -318,6 +409,9 @@ Add custom ejabberd configurations by:
 kubectl get pods
 kubectl describe pod ejabberd-xxx
 kubectl logs ejabberd-xxx
+
+# Check init container logs
+kubectl logs ejabberd-xxx -c create-admin-user
 ```
 
 ### Check Services
@@ -341,17 +435,43 @@ kubectl get configmap ejabberd-config
 kubectl get configmap ejabberd-config -o yaml
 
 # Check if the file is mounted correctly
-kubectl exec -it ejabberd-xxx -- cat /home/ejabberd/conf/ejabberd.yml
+kubectl exec -it ejabberd-xxx -- cat /opt/ejabberd/conf/ejabberd.yml
+```
+
+### Test HTTP API
+```bash
+# Test API connectivity
+curl -u admin@ejabberd.local:admin123 http://localhost:5280/api/status
+
+# Test MUC functionality
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/muc_online_rooms \
+  -H "Content-Type: application/json" \
+  -d '{"service": "conference.ejabberd.local"}'
+```
+
+### Check Secrets
+```bash
+# Verify secrets exist
+kubectl get secrets ejabberd-jwt-key ejabberd-admin
+
+# Check secret contents
+kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-user}' | base64 -d
+kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
 ## Security Considerations
 
-- Change default admin credentials
-- Use external secrets management in production
-- Configure TLS certificates
-- Set up network policies
-- Use external database for production
-- Secure your API keys and sensitive configuration
+- **Change default admin credentials**: Update `ejabberd.admin.password` in values.yaml for production
+- **Use external secrets management**: Consider using Kubernetes secrets or external secret managers
+- **Configure TLS certificates**: Set up proper TLS for XMPP and HTTP endpoints
+- **Set up network policies**: Restrict network access to ejabberd services
+- **Use external database**: Configure external PostgreSQL/MySQL for production
+- **Secure your API keys**: Rotate JWT secrets and API keys regularly
+- **Admin user security**: 
+  - The admin user is created automatically with internal auth
+  - Password is stored in Kubernetes secret `ejabberd-admin`
+  - Consider using external authentication providers for production
+- **MUC access control**: Review MUC access rules for your use case
 
 ## Contributing
 
