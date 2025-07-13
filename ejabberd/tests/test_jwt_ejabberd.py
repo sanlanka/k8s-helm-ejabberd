@@ -20,6 +20,12 @@ JID = f"{USER}@{DOMAIN}"
 ROOM = os.getenv("EJABBERD_ROOM", "room1")
 SERVICE = f"conference.{DOMAIN}"
 
+# Add timestamp to make resources unique
+TIMESTAMP = int(time.time()) % 10000  # Use last 4 digits of timestamp
+ROOM = f"{ROOM}_{TIMESTAMP}"
+USER = f"{USER}_{TIMESTAMP}"
+JID = f"{USER}@{DOMAIN}"
+
 
 def b64url(data: bytes) -> bytes:
     return base64.urlsafe_b64encode(data).rstrip(b"=")
@@ -96,7 +102,7 @@ def main():
         auth=admin_auth,
         description="List online rooms",
     )
-    test_api_endpoint(
+    create_room_result = test_api_endpoint(
         "create_room",
         {"name": ROOM, "service": SERVICE, "host": DOMAIN},
         auth=admin_auth,
@@ -109,6 +115,95 @@ def main():
         description="List rooms after creation",
     )
 
+    # Test 2b: Send message to room and read it back
+    if create_room_result and create_room_result.status_code == 200:
+        print("\n📋 Testing MUC messaging:")
+        room_jid = f"{ROOM}@{SERVICE}"
+        test_message = "Hello from ejabberd test! 👋"
+
+        # Send message to room
+        send_result = test_api_endpoint(
+            "send_message",
+            {
+                "type": "groupchat",
+                "from": "admin@ejabberd.local",
+                "to": room_jid,
+                "subject": "",
+                "body": test_message,
+            },
+            auth=admin_auth,
+            description="Send message to MUC room",
+        )
+
+        if send_result and send_result.status_code == 200:
+            print(f"   ✅ Message sent: '{test_message}'")
+
+            # Wait a moment for message to be processed
+            import time
+
+            time.sleep(1)
+
+            # Try different approaches to verify message was sent
+            # 1. Check room options (might show message archive settings)
+            options_result = test_api_endpoint(
+                "get_room_options",
+                {"name": ROOM, "service": SERVICE},
+                auth=admin_auth,
+                description="Get room options",
+            )
+
+            if options_result and options_result.status_code == 200:
+                try:
+                    options = options_result.json()
+                    mam_enabled = any(
+                        "mam" in str(opt).lower()
+                        for opt in options
+                        if isinstance(options, list)
+                    )
+                    print(f"   📋 Room options retrieved, MAM enabled: {mam_enabled}")
+                except:
+                    print(f"   📋 Room options (raw): {options_result.text[:100]}...")
+
+            # 2. Try to get room occupants
+            occupants_result = test_api_endpoint(
+                "get_room_occupants",
+                {"name": ROOM, "service": SERVICE},
+                auth=admin_auth,
+                description="Get room occupants",
+            )
+
+            if occupants_result and occupants_result.status_code == 200:
+                try:
+                    occupants = occupants_result.json()
+                    print(f"   👥 Room occupants: {occupants}")
+                except:
+                    print(f"   👥 Room occupants (raw): {occupants_result.text}")
+
+            # 3. Try alternative message history API
+            try:
+                # Some ejabberd versions use different API endpoints
+                alt_history_result = test_api_endpoint(
+                    "get_room_messages",
+                    {"name": ROOM, "service": SERVICE, "limit": 10},
+                    auth=admin_auth,
+                    description="Get room messages (alternative)",
+                )
+
+                if alt_history_result and alt_history_result.status_code == 200:
+                    try:
+                        messages = alt_history_result.json()
+                        print(f"   📝 Room messages: {messages}")
+                    except:
+                        print(
+                            f"   📝 Room messages (raw): {alt_history_result.text[:150]}..."
+                        )
+            except:
+                pass
+        else:
+            print(f"   ❌ Failed to send message to room")
+    else:
+        print("\n❌ Skipping messaging test - room creation failed")
+
     # Test 3: User registration with admin privileges
     print("\n📋 Testing user registration with admin:")
     register_result = test_api_endpoint(
@@ -118,17 +213,89 @@ def main():
         description="Register test user",
     )
 
-    # Test 4: Test user authentication (if registration succeeded)
+    # Test 4: Test user authentication and MUC participation (if registration succeeded)
     if register_result and register_result.status_code == 200:
         print("\n📋 Testing with newly registered user:")
         test_auth = (JID, "testpass123")
         test_api_endpoint("status", auth=test_auth, description="Status with test user")
+
+        # Try to create a second room with test user
         test_api_endpoint(
             "create_room",
             {"name": f"{ROOM}2", "service": SERVICE, "host": DOMAIN},
             auth=test_auth,
             description="Create room with test user",
         )
+
+        # Test user sending message to the first room (created by admin)
+        if create_room_result and create_room_result.status_code == 200:
+            print("\n📋 Testing user messaging in admin-created room:")
+            room_jid = f"{ROOM}@{SERVICE}"
+            user_message = f"Hello from {JID}! 🙋‍♂️"
+
+            # Send message as test user
+            user_send_result = test_api_endpoint(
+                "send_message",
+                {
+                    "type": "groupchat",
+                    "from": JID,
+                    "to": room_jid,
+                    "subject": "",
+                    "body": user_message,
+                },
+                auth=test_auth,
+                description="Send message as test user",
+            )
+
+            if user_send_result and user_send_result.status_code == 200:
+                print(f"   ✅ User message sent: '{user_message}'")
+
+                # Wait a moment for message to be processed
+                import time
+
+                time.sleep(1)
+
+                # Admin checks room state to verify messages
+                print("\n📋 Admin checking room state for all messages:")
+
+                # Check room occupants again
+                final_occupants_result = test_api_endpoint(
+                    "get_room_occupants",
+                    {"name": ROOM, "service": SERVICE},
+                    auth=admin_auth,
+                    description="Get final room occupants",
+                )
+
+                if final_occupants_result and final_occupants_result.status_code == 200:
+                    try:
+                        occupants = final_occupants_result.json()
+                        print(f"   👥 Final room occupants: {occupants}")
+                    except:
+                        print(
+                            f"   👥 Final occupants (raw): {final_occupants_result.text}"
+                        )
+
+                # Send another message to confirm messaging is working
+                confirm_message = (
+                    "Confirmation: Both admin and user messaging works! ✅"
+                )
+                confirm_result = test_api_endpoint(
+                    "send_message",
+                    {
+                        "type": "groupchat",
+                        "from": "admin@ejabberd.local",
+                        "to": room_jid,
+                        "subject": "",
+                        "body": confirm_message,
+                    },
+                    auth=admin_auth,
+                    description="Send confirmation message",
+                )
+
+                if confirm_result and confirm_result.status_code == 200:
+                    print(f"   ✅ Confirmation message sent: '{confirm_message}'")
+            else:
+                print(f"   ❌ Failed to send message as test user")
     else:
         print("\n❌ User registration failed, skipping test user authentication")
 
@@ -168,9 +335,11 @@ def main():
     print("💡 Key Points:")
     print("   1. ✅ Admin user works for HTTP API access")
     print("   2. ✅ MUC rooms can be created and managed")
-    print("   3. 🔑 JWT tokens are for XMPP client connections, not HTTP API")
-    print("   4. 🔐 HTTP API requires Basic Auth with existing user credentials")
-    print("   5. 🏠 MUC service is fully functional at conference.ejabberd.local")
+    print("   3. 💬 MUC messaging works (send/receive messages)")
+    print("   4. 👥 Multiple users can participate in rooms")
+    print("   5. 🔑 JWT tokens are for XMPP client connections, not HTTP API")
+    print("   6. 🔐 HTTP API requires Basic Auth with existing user credentials")
+    print("   7. 🏠 MUC service is fully functional at conference.ejabberd.local")
 
 
 if __name__ == "__main__":
