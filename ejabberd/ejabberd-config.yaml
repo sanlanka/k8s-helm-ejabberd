@@ -44,11 +44,12 @@ listen:
     web_admin: true
     http_bind: true
 
-# Use internal authentication (JWT temporarily disabled for testing)
-auth_method: internal
+# Enable both internal and JWT authentication
+auth_method: [internal, jwt]
 
-# JWT configuration
+# JWT configuration  
 jwt_key: "/opt/ejabberd/conf/jwt-key"
+jwt_jid_field: jid
 
 # API permissions for JWT-based authentication
 api_permissions:
@@ -86,6 +87,31 @@ api_permissions:
       - "join_room"
       - "leave_room"
       - "send_direct_invitation"
+      - "connected_users"
+      - "connected_users_number"
+      - "connected_users_info"
+      - "user_sessions_info"
+      - "status"
+  "jwt api access":
+    from:
+      - mod_http_api
+    who:
+      - all
+    what:
+      - "send_message"
+      - "get_roster"
+      - "get_presence"
+      - "set_presence"
+      - "get_vcard"
+      - "set_vcard"
+      - "connected_users"
+      - "connected_users_number"
+      - "connected_users_info"
+      - "user_sessions_info"
+      - "status"
+      - "muc_online_rooms"
+      - "get_room_occupants"
+      - "get_room_options"
 
 # ACL definitions
 acl:
@@ -141,6 +167,7 @@ modules:
   mod_caps: {}
   mod_http_api:
     default_version: 2
+    jwt_key: "/opt/ejabberd/conf/jwt-key"
   mod_last: {}
   # Core MUC service - allow anyone to create and join rooms
   mod_muc:

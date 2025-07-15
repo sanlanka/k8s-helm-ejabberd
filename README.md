@@ -641,17 +641,161 @@ class EjabberdAPI:
 # api.create_user_and_room_demo()
 ```
 
-### **8. Available API Endpoints**
+### **8. Online Users and Server Status**
+
+#### **Get Online Users**
+```bash
+# Get number of connected users
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users_number \
+  -H "Content-Type: application/json" \
+  -d '{"host": "ejabberd.local"}'
+
+# Get list of connected users
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users \
+  -H "Content-Type: application/json" \
+  -d '{"host": "ejabberd.local"}'
+
+# Get detailed user session info
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users_info \
+  -H "Content-Type: application/json" \
+  -d '{"host": "ejabberd.local"}'
+
+# Get specific user's session info
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/user_sessions_info \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "host": "ejabberd.local"
+  }'
+```
+
+```python
+def get_online_users(admin_user="admin@ejabberd.local", admin_pass="password"):
+    """Get list of online users"""
+    url = "http://localhost:5280/api/connected_users"
+    auth = (admin_user, admin_pass)
+    data = {"host": "ejabberd.local"}
+    
+    response = requests.post(url, json=data, auth=auth)
+    if response.status_code == 200:
+        return response.json()
+    return []
+
+def get_online_users_count(admin_user="admin@ejabberd.local", admin_pass="password"):
+    """Get number of online users"""
+    url = "http://localhost:5280/api/connected_users_number"
+    auth = (admin_user, admin_pass)
+    data = {"host": "ejabberd.local"}
+    
+    response = requests.post(url, json=data, auth=auth)
+    if response.status_code == 200:
+        return response.json()
+    return 0
+
+def get_server_status(auth_user, auth_pass):
+    """Get server status"""
+    url = "http://localhost:5280/api/status"
+    auth = (auth_user, auth_pass)
+    
+    response = requests.post(url, json={}, auth=auth)
+    return response.status_code == 200 and "running" in response.text.lower()
+```
+
+### **9. JWT Authentication for HTTP API**
+
+#### **Generate JWT Token**
+```python
+import jwt
+import json
+from datetime import datetime, timedelta
+
+# JWT secret (base64 decoded from the JWK)
+SECRET_KEY = "dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ"
+
+def generate_user_jwt(user_jid, expiry_minutes=60):
+    """Generate JWT for HTTP API access"""
+    now = datetime.utcnow()
+    payload = {
+        'jid': user_jid,
+        'iat': now,
+        'exp': now + timedelta(minutes=expiry_minutes),
+        'iss': 'ejabberd-api'
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+```
+
+#### **Use JWT with HTTP API**
+```bash
+# Generate JWT for alice
+# jwt_token=$(python3 -c "
+# import jwt
+# from datetime import datetime, timedelta
+# secret='dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ'
+# payload={'jid':'alice@ejabberd.local','exp':datetime.utcnow()+timedelta(hours=1)}
+# print(jwt.encode(payload, secret, algorithm='HS256'))
+# ")
+
+# Use JWT token for API calls
+curl -H "Authorization: Bearer $jwt_token" -X POST http://localhost:5280/api/status \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Send message using JWT
+curl -H "Authorization: Bearer $jwt_token" -X POST http://localhost:5280/api/send_message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "chat",
+    "from": "alice@ejabberd.local",
+    "to": "bob@ejabberd.local",
+    "body": "Hello via JWT!"
+  }'
+```
+
+```python
+def api_call_with_jwt(endpoint, user_jid, data=None):
+    """Make API call using JWT authentication"""
+    jwt_token = generate_user_jwt(user_jid)
+    
+    url = f"http://localhost:5280/api/{endpoint}"
+    headers = {"Authorization": f"Bearer {jwt_token}"}
+    
+    response = requests.post(url, headers=headers, json=data or {})
+    return response
+
+# Examples:
+# Check status with JWT
+status = api_call_with_jwt("status", "alice@ejabberd.local")
+
+# Send message with JWT  
+message_data = {
+    "type": "chat",
+    "from": "alice@ejabberd.local", 
+    "to": "bob@ejabberd.local",
+    "body": "Hello via JWT!"
+}
+result = api_call_with_jwt("send_message", "alice@ejabberd.local", message_data)
+
+# Get online users with JWT
+online_users = api_call_with_jwt("connected_users", "alice@ejabberd.local", {"host": "ejabberd.local"})
+```
+
+### **10. Available API Endpoints**
 
 #### **Admin-Only Operations:**
-- `status` - Get server status
-- `create_room` - Create MUC rooms  
 - `register` - Register new users
-- `muc_online_rooms` - List active rooms
-- `get_room_options` - Get room configuration
+- `create_room` - Create MUC rooms  
 - `stats` - Get server statistics
 
-#### **User Operations (with own credentials):**
+#### **Admin + User Operations (Basic Auth or JWT):**
+- `status` - Get server status
+- `connected_users` - List online users
+- `connected_users_number` - Count online users
+- `connected_users_info` - Detailed user session info
+- `muc_online_rooms` - List active rooms
+- `get_room_options` - Get room configuration
+- `get_room_occupants` - Get room users
+
+#### **User Operations (Basic Auth or JWT):**
 - `send_message` - Send chat/groupchat messages
 - `get_roster` - Get contact list
 - `add_rosteritem` - Add contacts
@@ -662,6 +806,7 @@ class EjabberdAPI:
 - `set_vcard` - Update user profile
 - `send_chat_state` - Send typing indicators
 - `get_user_rooms` - Get user's rooms
+- `user_sessions_info` - Get own session info
 - `join_room` - Join MUC room
 - `leave_room` - Leave MUC room
 
