@@ -71,8 +71,21 @@ api_permissions:
     what:
       - "send_message"
       - "get_roster"
+      - "add_rosteritem"
+      - "delete_rosteritem"
       - "get_presence"
       - "set_presence"
+      - "subscribe_roster"
+      - "unsubscribe_roster"
+      - "get_vcard"
+      - "set_vcard"
+      - "get_offline_count"
+      - "send_chat_state"
+      - "get_user_rooms"
+      - "get_room_occupants"
+      - "join_room"
+      - "leave_room"
+      - "send_direct_invitation"
 
 # ACL definitions
 acl:
@@ -149,24 +162,46 @@ modules:
     access: register
   mod_roster:
     versioning: true
+    store_current_id: false
   mod_s2s_dialback: {}
   mod_shared_roster: {}
   mod_time: {}
   mod_vcard: {}
   mod_version: {}
-  mod_mam: {}
+  mod_mam:
+    assume_mam_usage: true
+    default: roster
   mod_http_upload:
     put_url: https://@HOST@:5443/upload
     docroot: "/opt/ejabberd/upload"
     max_size: 10485760
-
+  # Enable presence and chat state functionality
+  mod_csi: {}
+  mod_carboncopy: {}
+  mod_stream_mgmt: {}
+  # Enable typing indicators and chat states
+  mod_csi:
+    buffer_max: 20
   mod_pubsub:
     access_createnode: pubsub_createnode
     plugins:
       - flat
       - pep
+    force_node_config:
+      "http://jabber.org/protocol/tune":
+        access_model: presence
+      "http://jabber.org/protocol/activity":
+        access_model: presence
+      "http://jabber.org/protocol/mood":
+        access_model: presence
+      "urn:xmpp:avatar:data":
+        access_model: presence
+      "urn:xmpp:avatar:metadata":
+        access_model: presence
   mod_push: {}
   mod_muc_log: {}
+  # Enable blocking command (XEP-0191)
+  mod_blocking: {}
 
 # Shaper rules
 shaper_rules:

@@ -280,23 +280,404 @@ The admin user is automatically created during pod startup via an init container
 
 ### HTTP API Access
 
-The ejabberd HTTP API is available at `http://<your-host>:5280/api/` and requires Basic Authentication using the admin credentials above.
+The ejabberd HTTP API is available at `http://<your-host>:5280/api/` and requires Basic Authentication.
 
-Example API calls:
+**Authentication Credentials:**
+- **Admin User**: `admin@ejabberd.local` / `password` (full API access)
+- **Regular Users**: `username@ejabberd.local` / `user_password` (limited API access)
+
+## 🚀 **API Integration Guide**
+
+This section provides comprehensive examples for integrating with the ejabberd HTTP API from your applications.
+
+### **1. Room Management**
+
+#### **Create a Room**
 ```bash
-# Get server status
-curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/status
-
-# Create a MUC room
-curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/create_room \
+# Admin creates a room
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/create_room \
   -H "Content-Type: application/json" \
-  -d '{"name": "general", "service": "conference.ejabberd.local", "host": "ejabberd.local"}'
+  -d '{
+    "name": "general-chat",
+    "service": "conference.ejabberd.local", 
+    "host": "ejabberd.local"
+  }'
+```
 
-# List online MUC rooms
-curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/muc_online_rooms \
+```python
+# Python example
+import requests
+
+def create_room(room_name, admin_user="admin@ejabberd.local", admin_pass="password"):
+    """Create a MUC room"""
+    url = "http://localhost:5280/api/create_room"
+    auth = (admin_user, admin_pass)
+    data = {
+        "name": room_name,
+        "service": "conference.ejabberd.local",
+        "host": "ejabberd.local"
+    }
+    
+    response = requests.post(url, json=data, auth=auth)
+    return response.status_code == 200
+```
+
+#### **List Online Rooms**
+```bash
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/muc_online_rooms \
   -H "Content-Type: application/json" \
   -d '{"service": "conference.ejabberd.local"}'
 ```
+
+#### **Get Room Information**
+```bash
+# Get room occupants
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/get_room_occupants \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "general-chat",
+    "service": "conference.ejabberd.local"
+  }'
+
+# Get room options
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/get_room_options \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "general-chat", 
+    "service": "conference.ejabberd.local"
+  }'
+```
+
+### **2. User Management**
+
+#### **Register New Users**
+```bash
+# Admin registers a new user
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "host": "ejabberd.local",
+    "password": "alice123"
+  }'
+```
+
+```python
+def register_user(username, password, admin_user="admin@ejabberd.local", admin_pass="password"):
+    """Register a new user"""
+    url = "http://localhost:5280/api/register"
+    auth = (admin_user, admin_pass)
+    data = {
+        "user": username,
+        "host": "ejabberd.local", 
+        "password": password
+    }
+    
+    response = requests.post(url, json=data, auth=auth)
+    return response.status_code == 200
+```
+
+#### **Get User Information**
+```bash
+# Check if user exists
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/check_account \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "host": "ejabberd.local"
+  }'
+```
+
+### **3. Message Sending**
+
+#### **Send Messages as Admin**
+```bash
+# Admin sends a message to a room
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/send_message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "groupchat",
+    "from": "admin@ejabberd.local",
+    "to": "general-chat@conference.ejabberd.local",
+    "subject": "",
+    "body": "Welcome to the chat room!"
+  }'
+
+# Admin sends a direct message
+curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/send_message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "chat",
+    "from": "admin@ejabberd.local", 
+    "to": "alice@ejabberd.local",
+    "subject": "",
+    "body": "Hello Alice!"
+  }'
+```
+
+#### **Send Messages as User**
+```bash
+# User sends a message using their own credentials
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/send_message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "groupchat",
+    "from": "alice@ejabberd.local",
+    "to": "general-chat@conference.ejabberd.local",
+    "subject": "",
+    "body": "Hello everyone!"
+  }'
+```
+
+```python
+def send_message_as_user(from_user, from_pass, to_jid, message_body, message_type="chat"):
+    """Send message as a specific user"""
+    url = "http://localhost:5280/api/send_message"
+    auth = (from_user, from_pass)
+    data = {
+        "type": message_type,  # "chat" or "groupchat"
+        "from": from_user,
+        "to": to_jid,
+        "subject": "",
+        "body": message_body
+    }
+    
+    response = requests.post(url, json=data, auth=auth)
+    return response.status_code == 200
+
+# Examples:
+# Send direct message
+send_message_as_user("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "Hi Bob!")
+
+# Send room message  
+send_message_as_user("alice@ejabberd.local", "alice123", "general@conference.ejabberd.local", "Hello room!", "groupchat")
+```
+
+### **4. Presence Management**
+
+#### **Set User Presence**
+```bash
+# Set user as available
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/set_presence \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "host": "ejabberd.local",
+    "resource": "mobile",
+    "type": "available",
+    "show": "chat",
+    "status": "Ready to chat!",
+    "priority": "5"
+  }'
+
+# Set user as away
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/set_presence \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "host": "ejabberd.local", 
+    "resource": "mobile",
+    "type": "available",
+    "show": "away",
+    "status": "Be right back",
+    "priority": "1"
+  }'
+```
+
+#### **Get User Presence**
+```bash
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/get_presence \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "bob",
+    "server": "ejabberd.local"
+  }'
+```
+
+```python
+def set_user_presence(user_jid, password, show="chat", status="Available", priority="5"):
+    """Set user presence"""
+    url = "http://localhost:5280/api/set_presence"
+    auth = (user_jid, password)
+    user, host = user_jid.split("@")
+    
+    data = {
+        "user": user,
+        "host": host,
+        "resource": "api",
+        "type": "available",
+        "show": show,  # chat, away, xa, dnd
+        "status": status,
+        "priority": priority
+    }
+    
+    response = requests.post(url, json=data, auth=auth)
+    return response.status_code == 200
+```
+
+### **5. Roster (Contact List) Management**
+
+#### **Get User's Roster**
+```bash
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/get_roster \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user": "alice",
+    "server": "ejabberd.local"
+  }'
+```
+
+#### **Add Contact to Roster**
+```bash
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/add_rosteritem \
+  -H "Content-Type: application/json" \
+  -d '{
+    "localuser": "alice",
+    "localserver": "ejabberd.local",
+    "user": "bob",
+    "server": "ejabberd.local",
+    "nick": "Bob Smith",
+    "group": "Friends",
+    "subs": "both"
+  }'
+```
+
+### **6. Chat States (Typing Indicators)**
+
+```python
+def send_chat_state(from_user, from_pass, to_jid, state):
+    """Send chat state (typing indicator)
+    
+    Args:
+        state: 'composing', 'paused', 'active', 'inactive', 'gone'
+    """
+    url = "http://localhost:5280/api/send_chat_state"
+    auth = (from_user, from_pass)
+    data = {
+        "from": from_user,
+        "to": to_jid,
+        "state": state
+    }
+    
+    response = requests.post(url, json=data, auth=auth)
+    return response.status_code == 200
+
+# Examples:
+send_chat_state("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "composing")  # Alice is typing
+send_chat_state("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "active")    # Alice stopped typing
+```
+
+### **7. Complete Integration Example**
+
+```python
+import requests
+import time
+
+class EjabberdAPI:
+    def __init__(self, base_url="http://localhost:5280", admin_user="admin@ejabberd.local", admin_pass="password"):
+        self.base_url = base_url
+        self.admin_auth = (admin_user, admin_pass)
+    
+    def create_user_and_room_demo(self):
+        """Complete demo: create users, room, and send messages"""
+        
+        # 1. Register users
+        self.register_user("alice", "alice123")
+        self.register_user("bob", "bob123")
+        
+        # 2. Create a room
+        self.create_room("demo-room")
+        
+        # 3. Set user presence
+        self.set_presence("alice@ejabberd.local", "alice123", "chat", "Ready to demo!")
+        self.set_presence("bob@ejabberd.local", "bob123", "chat", "Hello world!")
+        
+        # 4. Send messages as different users
+        self.send_message("alice@ejabberd.local", "alice123", 
+                         "demo-room@conference.ejabberd.local", 
+                         "Welcome to our demo room!", "groupchat")
+        
+        time.sleep(1)
+        
+        self.send_message("bob@ejabberd.local", "bob123",
+                         "demo-room@conference.ejabberd.local", 
+                         "Thanks Alice! Great to be here.", "groupchat")
+        
+        # 5. Send direct message
+        self.send_message("alice@ejabberd.local", "alice123",
+                         "bob@ejabberd.local",
+                         "Hey Bob, how are you doing?", "chat")
+        
+        print("✅ Demo completed successfully!")
+    
+    def register_user(self, username, password):
+        response = requests.post(f"{self.base_url}/api/register", 
+                               auth=self.admin_auth,
+                               json={"user": username, "host": "ejabberd.local", "password": password})
+        return response.status_code == 200
+    
+    def create_room(self, room_name):
+        response = requests.post(f"{self.base_url}/api/create_room",
+                               auth=self.admin_auth, 
+                               json={"name": room_name, "service": "conference.ejabberd.local", "host": "ejabberd.local"})
+        return response.status_code == 200
+    
+    def send_message(self, from_jid, password, to_jid, body, msg_type="chat"):
+        response = requests.post(f"{self.base_url}/api/send_message",
+                               auth=(from_jid, password),
+                               json={"type": msg_type, "from": from_jid, "to": to_jid, "body": body})
+        return response.status_code == 200
+    
+    def set_presence(self, user_jid, password, show="chat", status="Available"):
+        user, host = user_jid.split("@")
+        response = requests.post(f"{self.base_url}/api/set_presence",
+                               auth=(user_jid, password),
+                               json={"user": user, "host": host, "resource": "api", 
+                                    "type": "available", "show": show, "status": status, "priority": "5"})
+        return response.status_code == 200
+
+# Usage:
+# api = EjabberdAPI()
+# api.create_user_and_room_demo()
+```
+
+### **8. Available API Endpoints**
+
+#### **Admin-Only Operations:**
+- `status` - Get server status
+- `create_room` - Create MUC rooms  
+- `register` - Register new users
+- `muc_online_rooms` - List active rooms
+- `get_room_options` - Get room configuration
+- `stats` - Get server statistics
+
+#### **User Operations (with own credentials):**
+- `send_message` - Send chat/groupchat messages
+- `get_roster` - Get contact list
+- `add_rosteritem` - Add contacts
+- `delete_rosteritem` - Remove contacts  
+- `get_presence` - Get user presence
+- `set_presence` - Set own presence
+- `get_vcard` - Get user profile
+- `set_vcard` - Update user profile
+- `send_chat_state` - Send typing indicators
+- `get_user_rooms` - Get user's rooms
+- `join_room` - Join MUC room
+- `leave_room` - Leave MUC room
+
+### **9. Message Types**
+
+- **`chat`** - Direct message between users
+- **`groupchat`** - Message in a MUC room
+- **`headline`** - Broadcast/announcement message
+- **`normal`** - Regular message (like email)
+
+### **10. Presence Types**
+
+- **Show values**: `chat` (available), `away`, `xa` (extended away), `dnd` (do not disturb)
+- **Type values**: `available`, `unavailable`, `subscribe`, `subscribed`, `unsubscribe`, `unsubscribed`
+
+This API enables full XMPP functionality including messaging, presence, roster management, and room operations for building chat applications, collaboration tools, and real-time communication systems.
 
 ## Skaffold Profiles
 
