@@ -44,13 +44,11 @@ listen:
     web_admin: true
     http_bind: true
 
-# 1. Use both JWT and internal authentication
-auth_method:
-  - internal
-  - jwt
+# Use only internal authentication for now
+auth_method: internal
 
-# 2. Point to your JSON Web Key (JWK) file
-jwt_key: "/opt/ejabberd/conf/jwt-key"
+# JWT configuration (commented out for now)
+# jwt_key: "/opt/ejabberd/conf/jwt-key"
 
 # ACL definitions
 acl:
@@ -81,13 +79,8 @@ access_rules:
     - allow: all
   trusted_network:
     - allow
-  jwt_only:
-    deny: admin
-    allow: all
   pubsub_createnode:
     - allow: local
-
-jwt_auth_only_rule: jwt_only
 
 # 4. (Optional) If your token uses a different claim than "jid"
 # jwt_jid_field: "user_claim"
