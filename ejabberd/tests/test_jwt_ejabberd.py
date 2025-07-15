@@ -83,7 +83,7 @@ def main():
 
     # Test 1: Admin user authentication (this should work!)
     print("📋 Testing with admin user credentials:")
-    admin_auth = ("admin@ejabberd.local", "admin123")
+    admin_auth = ("admin@ejabberd.local", "password")
 
     status_result = test_api_endpoint(
         "status", auth=admin_auth, description="Server status with admin"

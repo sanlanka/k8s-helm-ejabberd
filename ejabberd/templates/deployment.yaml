@@ -45,6 +45,16 @@ spec:
                 secretKeyRef:
                   name: {{ include "ejabberd.fullname" . }}-admin
                   key: admin-password
+            - name: API_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-admin
+                  key: api-user
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-admin
+                  key: api-password
           command:
             - /bin/sh
             - -c
@@ -61,6 +71,10 @@ spec:
               # Create admin user
               echo "Creating admin user..."
               /opt/ejabberd/bin/ejabberdctl register "$ADMIN_USER" ejabberd.local "$ADMIN_PASSWORD"
+              
+              # Create API service account
+              echo "Creating API service account..."
+              /opt/ejabberd/bin/ejabberdctl register "$API_USER" ejabberd.local "$API_PASSWORD"
               
               # Stop ejabberd
               /opt/ejabberd/bin/ejabberdctl stop

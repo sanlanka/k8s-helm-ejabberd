@@ -44,17 +44,44 @@ listen:
     web_admin: true
     http_bind: true
 
-# Use only internal authentication for now
+# Use internal authentication (JWT temporarily disabled for testing)
 auth_method: internal
 
-# JWT configuration (commented out for now)
-# jwt_key: "/opt/ejabberd/conf/jwt-key"
+# JWT configuration
+jwt_key: "/opt/ejabberd/conf/jwt-key"
+
+# API permissions for JWT-based authentication
+api_permissions:
+  "console commands":
+    from:
+      - ejabberd_ctl
+    who: all
+    what: "*"
+  "admin access":
+    who:
+      - admin
+      - api
+    what:
+      - "*"
+      - "!stop"
+      - "!start"
+  "user api access":
+    who:
+      - local
+    what:
+      - "send_message"
+      - "get_roster"
+      - "get_presence"
+      - "set_presence"
 
 # ACL definitions
 acl:
   admin:
     user:
       - "admin@ejabberd.local"
+  api:
+    user:
+      - "api@ejabberd.local"
   local:
     user_regexp: ""
 
@@ -73,7 +100,9 @@ access_rules:
   muc:
     - allow: all
   muc_admin:
+    - allow: api    # service account may create/destroy rooms
     - allow: admin
+    - allow: local  # allow local users to manage rooms
   # Allow registration for all users
   register:
     - allow: all
@@ -81,6 +110,10 @@ access_rules:
     - allow
   pubsub_createnode:
     - allow: local
+  # API access - allow local users to use HTTP API
+  api_access:
+    - allow: local
+    - allow: admin
 
 # 4. (Optional) If your token uses a different claim than "jid"
 # jwt_jid_field: "user_claim"
