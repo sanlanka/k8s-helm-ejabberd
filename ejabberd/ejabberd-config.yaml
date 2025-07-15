@@ -66,6 +66,7 @@ api_permissions:
       - "*"
       - "!stop"
       - "!start"
+      - "status"
   "user api access":
     who:
       - local
