@@ -167,7 +167,6 @@ modules:
   mod_caps: {}
   mod_http_api:
     default_version: 2
-    jwt_key: "/opt/ejabberd/conf/jwt-key"
   mod_last: {}
   # Core MUC service - allow anyone to create and join rooms
   mod_muc:
@@ -203,12 +202,10 @@ modules:
     docroot: "/opt/ejabberd/upload"
     max_size: 10485760
   # Enable presence and chat state functionality
-  mod_csi: {}
   mod_carboncopy: {}
   mod_stream_mgmt: {}
   # Enable typing indicators and chat states
-  mod_csi:
-    buffer_max: 20
+  mod_sic: {}
   mod_pubsub:
     access_createnode: pubsub_createnode
     plugins:

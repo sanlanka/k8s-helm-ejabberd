@@ -30,11 +30,18 @@ spec:
       serviceAccountName: {{ include "ejabberd.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-        - name: create-admin-user
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ejabberd.fullname" . }}-jwt-key
+                  key: jwt-key
             - name: ADMIN_USER
               valueFrom:
                 secretKeyRef:
@@ -55,59 +62,36 @@ spec:
                 secretKeyRef:
                   name: {{ include "ejabberd.fullname" . }}-admin
                   key: api-password
-          command:
-            - /bin/sh
-            - -c
-            - |
-              # Start ejabberd in background
-              /opt/ejabberd/bin/ejabberdctl start
-              
-              # Wait for ejabberd to be ready
-              echo "Waiting for ejabberd to start..."
-              while ! /opt/ejabberd/bin/ejabberdctl status > /dev/null 2>&1; do
-                sleep 2
-              done
-              
-              # Create admin user
-              echo "Creating admin user..."
-              /opt/ejabberd/bin/ejabberdctl register "$ADMIN_USER" ejabberd.local "$ADMIN_PASSWORD"
-              
-              # Create API service account
-              echo "Creating API service account..."
-              /opt/ejabberd/bin/ejabberdctl register "$API_USER" ejabberd.local "$API_PASSWORD"
-              
-              # Stop ejabberd
-              /opt/ejabberd/bin/ejabberdctl stop
-              
-              # Wait for ejabberd to stop
-              while /opt/ejabberd/bin/ejabberdctl status > /dev/null 2>&1; do
-                sleep 1
-              done
-              
-              echo "Admin user created successfully"
-          volumeMounts:
-            - name: ejabberd-config
-              mountPath: /opt/ejabberd/conf/ejabberd.yml
-              subPath: ejabberd.yml
-              readOnly: true
-            - name: jwt-secret
-              mountPath: /opt/ejabberd/conf/jwt-key
-              subPath: jwt-key
-              readOnly: true
-            - name: ejabberd-data
-              mountPath: /opt/ejabberd/database
-      containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "ejabberd.fullname" . }}-jwt-key
-                  key: jwt-key
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    # Wait for ejabberd to be ready
+                    echo "Waiting for ejabberd to start before creating admin user..."
+                    while ! /opt/ejabberd/bin/ejabberdctl status > /dev/null 2>&1; do
+                      sleep 5
+                    done
+
+                    # Create admin user if it does not exist
+                    if /opt/ejabberd/bin/ejabberdctl check_account "$ADMIN_USER" ejabberd.local > /dev/null 2>&1; then
+                      echo "Admin user already exists."
+                    else
+                      echo "Creating admin user..."
+                      /opt/ejabberd/bin/ejabberdctl register "$ADMIN_USER" ejabberd.local "$ADMIN_PASSWORD"
+                    fi
+
+                    # Create API user if it does not exist
+                    if /opt/ejabberd/bin/ejabberdctl check_account "$API_USER" ejabberd.local > /dev/null 2>&1; then
+                      echo "API user already exists."
+                    else
+                      echo "Creating API service account..."
+                      /opt/ejabberd/bin/ejabberdctl register "$API_USER" ejabberd.local "$API_PASSWORD"
+                    fi
+
+                    echo "Admin user setup complete."
           ports:
             {{- if .Values.service.ports }}
             {{- range .Values.service.ports }}
