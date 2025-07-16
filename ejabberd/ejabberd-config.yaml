@@ -69,6 +69,9 @@ api_permissions:
       - "status"
       - "create_room"
       - "destroy_room"
+      - "register"
+      - "unregister"
+      - "send_message"
   "user api access":
     who:
       - local
@@ -174,9 +177,14 @@ modules:
   # Core MUC service - allow anyone to create and join rooms
   mod_muc:
     host: "conference.@HOST@"
-    access: muc
-    access_admin: muc_admin
+    access:
+      - allow
+    access_admin:
+      - allow: admin
+    access_create: muc_create
+    access_persistent: muc_create
     default_room_options:
+      members_only: false
       persistent: true
       public: true
   # Admin API helpers for MUC
