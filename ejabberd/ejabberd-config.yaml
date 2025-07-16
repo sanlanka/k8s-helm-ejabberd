@@ -67,6 +67,8 @@ api_permissions:
       - "!stop"
       - "!start"
       - "status"
+      - "create_room"
+      - "destroy_room"
   "user api access":
     who:
       - local
