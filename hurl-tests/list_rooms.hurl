@@ -58,7 +58,7 @@ HTTP/1.1 200
 [Asserts]
 body contains "successfully registered"
 
-# Send a message to the room
+# Send multiple messages to the room
 POST http://localhost:5280/api/send_message
 Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
 Content-Type: application/json
@@ -66,6 +66,44 @@ Content-Type: application/json
 HTTP/1.1 200
 [Asserts]
 body contains "0"
+
+# Send second message
+POST http://localhost:5280/api/send_message
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"type":"groupchat","from":"test_user@ejabberd.local","to":"testroom2@conference.ejabberd.local","subject":"","body":"Second message from test_user"}
+HTTP/1.1 200
+[Asserts]
+body contains "0"
+
+# Send third message
+POST http://localhost:5280/api/send_message
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"type":"groupchat","from":"test_user@ejabberd.local","to":"testroom2@conference.ejabberd.local","subject":"","body":"Third message from test_user"}
+HTTP/1.1 200
+[Asserts]
+body contains "0"
+
+# Subscribe to room for MUC/Sub functionality
+POST http://localhost:5280/api/subscribe_room
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"room":"testroom2","service":"conference.ejabberd.local","jid":"test_user@ejabberd.local","nick":"TestUser"}
+HTTP/1.1 200
+[Asserts]
+body contains "0"
+
+# Read messages from the room using MAM
+POST http://localhost:5280/api/get_mam_messages
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"with": "testroom2@conference.ejabberd.local", "user": "test_user", "host": "ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "Hello from test_user"
+body contains "Second message from test_user"
+body contains "Third message from test_user"
 
 # Check room occupants (simpler test to verify API is working)
 POST http://localhost:5280/api/get_room_occupants
