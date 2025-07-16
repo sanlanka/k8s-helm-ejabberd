@@ -66,3 +66,21 @@ Content-Type: application/json
 HTTP/1.1 200
 [Asserts]
 body contains "0"
+
+# Check room occupants (simpler test to verify API is working)
+POST http://localhost:5280/api/get_room_occupants
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"room":"testroom2","service":"conference.ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "[]"
+
+# Verify room options (alternative to reading messages)
+POST http://localhost:5280/api/get_room_options
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"room":"testroom2","service":"conference.ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "members_only"

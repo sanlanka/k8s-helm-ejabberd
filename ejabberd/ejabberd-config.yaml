@@ -72,6 +72,9 @@ api_permissions:
       - "register"
       - "unregister"
       - "send_message"
+      - "get_room_history"
+      - "get_room_occupants"
+      - "get_room_options"
   "user api access":
     who:
       - local
