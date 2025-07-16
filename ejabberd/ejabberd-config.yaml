@@ -220,7 +220,7 @@ modules:
     assume_mam_usage: true
     default: roster
   mod_http_upload:
-    put_url: https://@HOST@:5443/upload
+    put_url: http://@HOST@:5280/upload
     docroot: "/opt/ejabberd/upload"
     max_size: 10485760
   # Enable presence and chat state functionality
