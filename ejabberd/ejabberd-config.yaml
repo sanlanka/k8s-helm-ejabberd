@@ -75,6 +75,14 @@ api_permissions:
       - "get_room_history"
       - "get_room_occupants"
       - "get_room_options"
+      - "set_presence"
+      - "get_presence"
+      - "connected_users_info"
+      - "connected_users_number"
+      - "user_sessions_info"
+      - "user_resources"
+      - "send_chat_state"
+      - "get_offline_count"
   "user api access":
     who:
       - local

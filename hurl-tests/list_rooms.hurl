@@ -84,3 +84,63 @@ Content-Type: application/json
 HTTP/1.1 200
 [Asserts]
 body contains "members_only"
+
+# Test presence and status functionality
+
+# Get user presence (should show unavailable since user is not connected)
+POST http://localhost:5280/api/get_presence
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"user":"test_user","host":"ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "test_user@ejabberd.local"
+body contains "unavailable"
+
+# Get connected users info (should be empty since no users are connected)
+POST http://localhost:5280/api/connected_users_info
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{}
+HTTP/1.1 200
+[Asserts]
+body contains "[]"
+
+# Get number of connected users (should be 0)
+POST http://localhost:5280/api/connected_users_number
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{}
+HTTP/1.1 200
+[Asserts]
+body contains "0"
+
+# Get user sessions info (should be empty since user is not connected)
+POST http://localhost:5280/api/user_sessions_info
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"user":"test_user","host":"ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "[]"
+
+# Get user resources (should be empty since user is not connected)
+POST http://localhost:5280/api/user_resources
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"user":"test_user","host":"ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "[]"
+
+# Note: Chat state (typing indicators) require user connections, so we skip those tests
+# as they would fail with "unknown_command" or "User session not found" errors
+
+# Get offline message count
+POST http://localhost:5280/api/get_offline_count
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"user":"test_user","host":"ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "0"
