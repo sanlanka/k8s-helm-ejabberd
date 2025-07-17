@@ -1,718 +1,78 @@
 # ejabberd Kubernetes Helm Chart
 
-A minimal Helm chart for deploying ejabberd XMPP server on Kubernetes with Skaffold integration for local development and CI/CD.
+A production-ready Helm chart for deploying ejabberd XMPP server on Kubernetes with comprehensive HTTP API support, JWT authentication, and Skaffold integration for local development and CI/CD.
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Kubernetes cluster (local or GKE)
+### Prerequisites
+
+- Kubernetes cluster (local or cloud)
 - [Helm 3.x](https://helm.sh/docs/intro/install/)
-- [Skaffold](https://skaffold.dev/docs/install/)
+- [Skaffold](https://skaffold.dev/docs/install/) (optional, for development)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
-## Quick Start
-
-### 1. Local Development with Skaffold
-
-For local development with live updates:
+### Local Development
 
 ```bash
-# Start local development
+# Start with live updates
 skaffold dev
 
-# Or specify the dev profile explicitly
-skaffold dev --profile=dev
-```
-
-This will:
-- Deploy ejabberd to your local Kubernetes cluster
-- Use LoadBalancer service type for easy access
-- Watch for changes and redeploy automatically
-
-### 2. Manual Helm Deployment
-
-If you prefer using Helm directly:
-
-```bash
-# Install the chart
+# Or deploy manually
 helm install ejabberd ./ejabberd
-
-# Upgrade the deployment
-helm upgrade ejabberd ./ejabberd
-
-# Uninstall
-helm uninstall ejabberd
 ```
 
-### 3. Production Deployment
-
-For production deployment:
+### Production Deployment
 
 ```bash
 # Deploy to production
 skaffold run --profile=prod
 
-# Or with plain Helm
+# Or with Helm
 helm upgrade --install ejabberd ./ejabberd -f values-prod.yaml
 ```
 
-## Configuration
+## 🔐 Authentication Methods
 
-### Basic Configuration
+This ejabberd deployment supports multiple authentication methods for the HTTP API:
 
-The main configuration is in `ejabberd/values.yaml`:
+### 1. Basic Authentication (Username/Password)
 
-- **Image**: `processone/ejabberd:latest`
-- **Ports**: 
-  - 5222 (XMPP client connections)
-  - 5269 (XMPP server-to-server)
-  - 5280 (HTTP admin interface)
-
-### Kubernetes Secrets
-
-The chart automatically creates two secrets:
-
-1. **JWT Secret** (`ejabberd-jwt-key`):
-   - Contains JWT signing key for mod_http_api
-   - Automatically generated random key
-   - Available as environment variable `JWT_SECRET`
-
-2. **Admin User Secret** (`ejabberd-admin`):
-   - Contains admin user credentials
-   - Username: `admin@ejabberd.local`
-   - Password: `admin123` (configurable in values.yaml)
-   - Used by init container to create admin user
-
-```bash
-# View the secrets
-kubectl get secrets ejabberd-jwt-key ejabberd-admin
-
-# View admin credentials (base64 encoded)
-kubectl get secret ejabberd-admin -o yaml
-```
-
-### MUC (Multi-User Chat) Configuration
-
-The chart includes full MUC support with the following features:
-
-- **MUC Service**: `conference.ejabberd.local`
-- **Access Control**: Anyone can create and join rooms
-- **Admin Access**: Admin users can manage all rooms via HTTP API
-- **Persistent Rooms**: Rooms persist by default
-- **Public Rooms**: Rooms are public and discoverable
-
-Key MUC modules configured:
-- `mod_muc`: Core MUC functionality
-- `mod_muc_admin`: Admin API for room management
-
-Test MUC functionality:
-```bash
-# Run the MUC test suite
-cd ejabberd/tests
-python test_muc_admin.py
-```
-
-### ejabberd Configuration File
-
-The chart automatically loads the ejabberd configuration from `ejabberd-config.yaml`. This allows you to use the full power of ejabberd's configuration system as documented at https://docs.ejabberd.im/admin/configuration/.
-
-#### Configuration File Location
-
-The configuration file is always loaded from:
-```
-ejabberd-config.yaml
-```
-
-This file should be in the same directory as your Helm chart and contains the ejabberd YAML configuration.
-
-#### Example Configuration
-
-The `ejabberd-config.yaml` file contains a complete ejabberd configuration:
-
-```yaml
-# Custom ejabberd configuration
-hosts:
-  - "xmpp.example.com"
-  - "chat.example.com"
-
-loglevel: info
-
-listen:
-  -
-    port: 5222
-    module: ejabberd_c2s
-    max_stanza_size: 262144
-    shaper: c2s_shaper
-    access: c2s
-    starttls_required: true
-  -
-    port: 5269
-    module: ejabberd_s2s_in
-    max_stanza_size: 524288
-  -
-    port: 5280
-    module: ejabberd_http
-    request_handlers:
-      "/admin": ejabberd_web_admin
-      "/api": mod_http_api
-      "/": ejabberd_http
-
-modules:
-  mod_adhoc: {}
-  mod_admin_extra: {}
-  mod_announce:
-    access: announce
-  mod_http_api:
-    api_key: "your-secure-api-key-here"
-  mod_http_upload: {}
-  mod_mam:
-    assume_mam_usage: true
-    default: roster
-  mod_muc:
-    access:
-      - allow
-    access_admin:
-      - allow: admin
-    access_create: muc_create
-    access_persistent: muc_create
-    access_mam:
-      - allow
-    default_room_jid: ""
-    default_room_options:
-      mam: true
-      persistent: true
-  mod_offline:
-    access_max_user_messages: max_user_offline_messages
-  mod_ping: {}
-  mod_roster:
-    versioning: true
-  mod_vcard: {}
-  mod_version:
-    show_os: false
-
-auth_method: internal
-
-access_rules:
-  local:
-    - allow: local
-  c2s:
-    - deny: blocked
-    - allow
-  announce:
-    - allow: admin
-  configure:
-    - allow: admin
-  muc_create:
-    - allow: local
-
-shaper_rules:
-  max_user_sessions: 10
-  max_user_offline_messages:
-    - 5000: admin
-    - 100
-  c2s_shaper:
-    - none: admin
-    - normal
-  s2s_shaper: fast
-```
-
-#### Customizing the Configuration
-
-To customize the ejabberd configuration:
-
-1. Edit the `ejabberd-config.yaml` file
-2. Modify the configuration according to your needs
-3. Deploy the chart - it will automatically use your updated configuration
-
-```bash
-# Edit the configuration
-vim ejabberd-config.yaml
-
-# Deploy with your custom configuration
-helm install ejabberd ./ejabberd
-```
-
-#### Configuration File Location Inside Container
-
-When deployed, the configuration file is mounted at `/opt/ejabberd/conf/ejabberd.yml` inside the container.
-
-### Production Configuration
-
-Production overrides are in `values-prod.yaml`:
-
-- Increased resource limits
-- Horizontal Pod Autoscaling
-- Ingress configuration
-- External database support
-
-### Custom Values
-
-Create your own values file:
-
-```bash
-cp ejabberd/values.yaml values-custom.yaml
-# Edit values-custom.yaml with your settings
-helm install ejabberd ./ejabberd -f values-custom.yaml
-```
-
-## Accessing ejabberd
-
-### Local Development
-
-When using `skaffold dev`, the service will be exposed as LoadBalancer. Get the external IP:
-
-```bash
-kubectl get svc ejabberd
-```
-
-### Production
-
-Configure your ingress and DNS to point to the cluster.
-
-### Admin Interface
-
-Access the admin interface at `http://<your-host>:5280/admin/`
-
-Default admin credentials (automatically created):
+**Default Admin User:**
 - Username: `admin@ejabberd.local`
 - Password: `admin123`
 
-The admin user is automatically created during pod startup via an init container and stored in the ejabberd internal database.
+**Regular Users:**
+- Username: `username@ejabberd.local`
+- Password: `user_password`
 
-### HTTP API Access
-
-The ejabberd HTTP API is available at `http://<your-host>:5280/api/` and requires Basic Authentication.
-
-**Authentication Credentials:**
-- **Admin User**: `admin@ejabberd.local` / `password` (full API access)
-- **Regular Users**: `username@ejabberd.local` / `user_password` (limited API access)
-
-## 🚀 **API Integration Guide**
-
-This section provides comprehensive examples for integrating with the ejabberd HTTP API from your applications.
-
-### **1. Room Management**
-
-#### **Create a Room**
 ```bash
-# Admin creates a room
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/create_room \
+# Admin API call
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/status \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "general-chat",
-    "service": "conference.ejabberd.local", 
-    "host": "ejabberd.local"
-  }'
-```
+  -d '{}'
 
-```python
-# Python example
-import requests
-
-def create_room(room_name, admin_user="admin@ejabberd.local", admin_pass="password"):
-    """Create a MUC room"""
-    url = "http://localhost:5280/api/create_room"
-    auth = (admin_user, admin_pass)
-    data = {
-        "name": room_name,
-        "service": "conference.ejabberd.local",
-        "host": "ejabberd.local"
-    }
-    
-    response = requests.post(url, json=data, auth=auth)
-    return response.status_code == 200
-```
-
-#### **List Online Rooms**
-```bash
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/muc_online_rooms \
-  -H "Content-Type: application/json" \
-  -d '{"service": "conference.ejabberd.local"}'
-```
-
-#### **Get Room Information**
-```bash
-# Get room occupants
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/get_room_occupants \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "general-chat",
-    "service": "conference.ejabberd.local"
-  }'
-
-# Get room options
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/get_room_options \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "general-chat", 
-    "service": "conference.ejabberd.local"
-  }'
-```
-
-### **2. User Management**
-
-#### **Register New Users**
-```bash
-# Admin registers a new user
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "host": "ejabberd.local",
-    "password": "alice123"
-  }'
-```
-
-```python
-def register_user(username, password, admin_user="admin@ejabberd.local", admin_pass="password"):
-    """Register a new user"""
-    url = "http://localhost:5280/api/register"
-    auth = (admin_user, admin_pass)
-    data = {
-        "user": username,
-        "host": "ejabberd.local", 
-        "password": password
-    }
-    
-    response = requests.post(url, json=data, auth=auth)
-    return response.status_code == 200
-```
-
-#### **Get User Information**
-```bash
-# Check if user exists
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/check_account \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "host": "ejabberd.local"
-  }'
-```
-
-### **3. Message Sending**
-
-#### **Send Messages as Admin**
-```bash
-# Admin sends a message to a room
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/send_message \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "groupchat",
-    "from": "admin@ejabberd.local",
-    "to": "general-chat@conference.ejabberd.local",
-    "subject": "",
-    "body": "Welcome to the chat room!"
-  }'
-
-# Admin sends a direct message
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/send_message \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "chat",
-    "from": "admin@ejabberd.local", 
-    "to": "alice@ejabberd.local",
-    "subject": "",
-    "body": "Hello Alice!"
-  }'
-```
-
-#### **Send Messages as User**
-```bash
-# User sends a message using their own credentials
+# User API call
 curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/send_message \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "groupchat",
+    "type": "chat",
     "from": "alice@ejabberd.local",
-    "to": "general-chat@conference.ejabberd.local",
-    "subject": "",
-    "body": "Hello everyone!"
+    "to": "bob@ejabberd.local",
+    "body": "Hello!"
   }'
 ```
 
-```python
-def send_message_as_user(from_user, from_pass, to_jid, message_body, message_type="chat"):
-    """Send message as a specific user"""
-    url = "http://localhost:5280/api/send_message"
-    auth = (from_user, from_pass)
-    data = {
-        "type": message_type,  # "chat" or "groupchat"
-        "from": from_user,
-        "to": to_jid,
-        "subject": "",
-        "body": message_body
-    }
-    
-    response = requests.post(url, json=data, auth=auth)
-    return response.status_code == 200
+### 2. JWT Token Authentication
 
-# Examples:
-# Send direct message
-send_message_as_user("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "Hi Bob!")
-
-# Send room message  
-send_message_as_user("alice@ejabberd.local", "alice123", "general@conference.ejabberd.local", "Hello room!", "groupchat")
-```
-
-### **4. Presence Management**
-
-#### **Set User Presence**
-```bash
-# Set user as available
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/set_presence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "host": "ejabberd.local",
-    "resource": "mobile",
-    "type": "available",
-    "show": "chat",
-    "status": "Ready to chat!",
-    "priority": "5"
-  }'
-
-# Set user as away
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/set_presence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "host": "ejabberd.local", 
-    "resource": "mobile",
-    "type": "available",
-    "show": "away",
-    "status": "Be right back",
-    "priority": "1"
-  }'
-```
-
-#### **Get User Presence**
-```bash
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/get_presence \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "bob",
-    "server": "ejabberd.local"
-  }'
-```
-
-```python
-def set_user_presence(user_jid, password, show="chat", status="Available", priority="5"):
-    """Set user presence"""
-    url = "http://localhost:5280/api/set_presence"
-    auth = (user_jid, password)
-    user, host = user_jid.split("@")
-    
-    data = {
-        "user": user,
-        "host": host,
-        "resource": "api",
-        "type": "available",
-        "show": show,  # chat, away, xa, dnd
-        "status": status,
-        "priority": priority
-    }
-    
-    response = requests.post(url, json=data, auth=auth)
-    return response.status_code == 200
-```
-
-### **5. Roster (Contact List) Management**
-
-#### **Get User's Roster**
-```bash
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/get_roster \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "server": "ejabberd.local"
-  }'
-```
-
-#### **Add Contact to Roster**
-```bash
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/add_rosteritem \
-  -H "Content-Type: application/json" \
-  -d '{
-    "localuser": "alice",
-    "localserver": "ejabberd.local",
-    "user": "bob",
-    "server": "ejabberd.local",
-    "nick": "Bob Smith",
-    "group": "Friends",
-    "subs": "both"
-  }'
-```
-
-### **6. Chat States (Typing Indicators)**
-
-```python
-def send_chat_state(from_user, from_pass, to_jid, state):
-    """Send chat state (typing indicator)
-    
-    Args:
-        state: 'composing', 'paused', 'active', 'inactive', 'gone'
-    """
-    url = "http://localhost:5280/api/send_chat_state"
-    auth = (from_user, from_pass)
-    data = {
-        "from": from_user,
-        "to": to_jid,
-        "state": state
-    }
-    
-    response = requests.post(url, json=data, auth=auth)
-    return response.status_code == 200
-
-# Examples:
-send_chat_state("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "composing")  # Alice is typing
-send_chat_state("alice@ejabberd.local", "alice123", "bob@ejabberd.local", "active")    # Alice stopped typing
-```
-
-### **7. Complete Integration Example**
-
-```python
-import requests
-import time
-
-class EjabberdAPI:
-    def __init__(self, base_url="http://localhost:5280", admin_user="admin@ejabberd.local", admin_pass="password"):
-        self.base_url = base_url
-        self.admin_auth = (admin_user, admin_pass)
-    
-    def create_user_and_room_demo(self):
-        """Complete demo: create users, room, and send messages"""
-        
-        # 1. Register users
-        self.register_user("alice", "alice123")
-        self.register_user("bob", "bob123")
-        
-        # 2. Create a room
-        self.create_room("demo-room")
-        
-        # 3. Set user presence
-        self.set_presence("alice@ejabberd.local", "alice123", "chat", "Ready to demo!")
-        self.set_presence("bob@ejabberd.local", "bob123", "chat", "Hello world!")
-        
-        # 4. Send messages as different users
-        self.send_message("alice@ejabberd.local", "alice123", 
-                         "demo-room@conference.ejabberd.local", 
-                         "Welcome to our demo room!", "groupchat")
-        
-        time.sleep(1)
-        
-        self.send_message("bob@ejabberd.local", "bob123",
-                         "demo-room@conference.ejabberd.local", 
-                         "Thanks Alice! Great to be here.", "groupchat")
-        
-        # 5. Send direct message
-        self.send_message("alice@ejabberd.local", "alice123",
-                         "bob@ejabberd.local",
-                         "Hey Bob, how are you doing?", "chat")
-        
-        print("✅ Demo completed successfully!")
-    
-    def register_user(self, username, password):
-        response = requests.post(f"{self.base_url}/api/register", 
-                               auth=self.admin_auth,
-                               json={"user": username, "host": "ejabberd.local", "password": password})
-        return response.status_code == 200
-    
-    def create_room(self, room_name):
-        response = requests.post(f"{self.base_url}/api/create_room",
-                               auth=self.admin_auth, 
-                               json={"name": room_name, "service": "conference.ejabberd.local", "host": "ejabberd.local"})
-        return response.status_code == 200
-    
-    def send_message(self, from_jid, password, to_jid, body, msg_type="chat"):
-        response = requests.post(f"{self.base_url}/api/send_message",
-                               auth=(from_jid, password),
-                               json={"type": msg_type, "from": from_jid, "to": to_jid, "body": body})
-        return response.status_code == 200
-    
-    def set_presence(self, user_jid, password, show="chat", status="Available"):
-        user, host = user_jid.split("@")
-        response = requests.post(f"{self.base_url}/api/set_presence",
-                               auth=(user_jid, password),
-                               json={"user": user, "host": host, "resource": "api", 
-                                    "type": "available", "show": show, "status": status, "priority": "5"})
-        return response.status_code == 200
-
-# Usage:
-# api = EjabberdAPI()
-# api.create_user_and_room_demo()
-```
-
-### **8. Online Users and Server Status**
-
-#### **Get Online Users**
-```bash
-# Get number of connected users
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users_number \
-  -H "Content-Type: application/json" \
-  -d '{"host": "ejabberd.local"}'
-
-# Get list of connected users
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users \
-  -H "Content-Type: application/json" \
-  -d '{"host": "ejabberd.local"}'
-
-# Get detailed user session info
-curl -u admin@ejabberd.local:password -X POST http://localhost:5280/api/connected_users_info \
-  -H "Content-Type: application/json" \
-  -d '{"host": "ejabberd.local"}'
-
-# Get specific user's session info
-curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/user_sessions_info \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user": "alice",
-    "host": "ejabberd.local"
-  }'
-```
-
-```python
-def get_online_users(admin_user="admin@ejabberd.local", admin_pass="password"):
-    """Get list of online users"""
-    url = "http://localhost:5280/api/connected_users"
-    auth = (admin_user, admin_pass)
-    data = {"host": "ejabberd.local"}
-    
-    response = requests.post(url, json=data, auth=auth)
-    if response.status_code == 200:
-        return response.json()
-    return []
-
-def get_online_users_count(admin_user="admin@ejabberd.local", admin_pass="password"):
-    """Get number of online users"""
-    url = "http://localhost:5280/api/connected_users_number"
-    auth = (admin_user, admin_pass)
-    data = {"host": "ejabberd.local"}
-    
-    response = requests.post(url, json=data, auth=auth)
-    if response.status_code == 200:
-        return response.json()
-    return 0
-
-def get_server_status(auth_user, auth_pass):
-    """Get server status"""
-    url = "http://localhost:5280/api/status"
-    auth = (auth_user, auth_pass)
-    
-    response = requests.post(url, json={}, auth=auth)
-    return response.status_code == 200 and "running" in response.text.lower()
-```
-
-### **9. JWT Authentication for HTTP API**
-
-#### **Generate JWT Token**
+**Generate JWT Token:**
 ```python
 import jwt
-import json
 from datetime import datetime, timedelta
 
-# JWT secret (base64 decoded from the JWK)
+# JWT secret (from Kubernetes secret)
 SECRET_KEY = "dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ"
 
-def generate_user_jwt(user_jid, expiry_minutes=60):
+def generate_jwt(user_jid, expiry_minutes=60):
     """Generate JWT for HTTP API access"""
     now = datetime.utcnow()
     payload = {
@@ -722,26 +82,15 @@ def generate_user_jwt(user_jid, expiry_minutes=60):
         'iss': 'ejabberd-api'
     }
     return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+
+# Generate token for alice
+token = generate_jwt("alice@ejabberd.local")
 ```
 
-#### **Use JWT with HTTP API**
+**Use JWT Token:**
 ```bash
-# Generate JWT for alice
-# jwt_token=$(python3 -c "
-# import jwt
-# from datetime import datetime, timedelta
-# secret='dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ'
-# payload={'jid':'alice@ejabberd.local','exp':datetime.utcnow()+timedelta(hours=1)}
-# print(jwt.encode(payload, secret, algorithm='HS256'))
-# ")
-
-# Use JWT token for API calls
-curl -H "Authorization: Bearer $jwt_token" -X POST http://localhost:5280/api/status \
-  -H "Content-Type: application/json" \
-  -d '{}'
-
-# Send message using JWT
-curl -H "Authorization: Bearer $jwt_token" -X POST http://localhost:5280/api/send_message \
+# API call with JWT
+curl -H "Authorization: Bearer $JWT_TOKEN" -X POST http://localhost:5280/api/send_message \
   -H "Content-Type: application/json" \
   -d '{
     "type": "chat",
@@ -751,258 +100,643 @@ curl -H "Authorization: Bearer $jwt_token" -X POST http://localhost:5280/api/sen
   }'
 ```
 
-```python
-def api_call_with_jwt(endpoint, user_jid, data=None):
-    """Make API call using JWT authentication"""
-    jwt_token = generate_user_jwt(user_jid)
-    
-    url = f"http://localhost:5280/api/{endpoint}"
-    headers = {"Authorization": f"Bearer {jwt_token}"}
-    
-    response = requests.post(url, headers=headers, json=data or {})
-    return response
+### 3. API Key Authentication
 
-# Examples:
-# Check status with JWT
-status = api_call_with_jwt("status", "alice@ejabberd.local")
-
-# Send message with JWT  
-message_data = {
-    "type": "chat",
-    "from": "alice@ejabberd.local", 
-    "to": "bob@ejabberd.local",
-    "body": "Hello via JWT!"
-}
-result = api_call_with_jwt("send_message", "alice@ejabberd.local", message_data)
-
-# Get online users with JWT
-online_users = api_call_with_jwt("connected_users", "alice@ejabberd.local", {"host": "ejabberd.local"})
+**Configure API Key:**
+```yaml
+# In ejabberd-config.yaml
+modules:
+  mod_http_api:
+    api_key: "your-secure-api-key-here"
 ```
 
-### **10. Available API Endpoints**
+**Use API Key:**
+```bash
+curl -H "X-API-Key: your-secure-api-key-here" -X POST http://localhost:5280/api/status \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
-#### **Admin-Only Operations:**
-- `register` - Register new users
-- `create_room` - Create MUC rooms  
-- `stats` - Get server statistics
+## 🌐 Proxy Calls to ejabberd
 
-#### **Admin + User Operations (Basic Auth or JWT):**
-- `status` - Get server status
-- `connected_users` - List online users
-- `connected_users_number` - Count online users
-- `connected_users_info` - Detailed user session info
-- `muc_online_rooms` - List active rooms
-- `get_room_options` - Get room configuration
-- `get_room_occupants` - Get room users
+### HTTP API Endpoints
 
-#### **User Operations (Basic Auth or JWT):**
-- `send_message` - Send chat/groupchat messages
-- `get_roster` - Get contact list
-- `add_rosteritem` - Add contacts
-- `delete_rosteritem` - Remove contacts  
-- `get_presence` - Get user presence
-- `set_presence` - Set own presence
-- `get_vcard` - Get user profile
-- `set_vcard` - Update user profile
-- `send_chat_state` - Send typing indicators
-- `get_user_rooms` - Get user's rooms
-- `user_sessions_info` - Get own session info
-- `join_room` - Join MUC room
-- `leave_room` - Leave MUC room
+The ejabberd HTTP API is available at `http://<host>:5280/api/` and supports all XMPP operations:
 
-### **9. Message Types**
+#### **Core Endpoints**
 
-- **`chat`** - Direct message between users
-- **`groupchat`** - Message in a MUC room
-- **`headline`** - Broadcast/announcement message
-- **`normal`** - Regular message (like email)
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/status` | POST | Server status | Admin/User |
+| `/api/register` | POST | Register new user | Admin only |
+| `/api/send_message` | POST | Send message | User |
+| `/api/get_roster` | POST | Get contact list | User |
+| `/api/set_presence` | POST | Set user presence | User |
 
-### **10. Presence Types**
+#### **MUC (Multi-User Chat) Endpoints**
 
-- **Show values**: `chat` (available), `away`, `xa` (extended away), `dnd` (do not disturb)
-- **Type values**: `available`, `unavailable`, `subscribe`, `subscribed`, `unsubscribe`, `unsubscribed`
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/create_room` | POST | Create MUC room | Admin |
+| `/api/destroy_room` | POST | Delete MUC room | Admin |
+| `/api/muc_online_rooms` | POST | List active rooms | Admin/User |
+| `/api/get_room_occupants` | POST | Get room users | Admin/User |
+| `/api/join_room` | POST | Join room | User |
+| `/api/leave_room` | POST | Leave room | User |
 
-This API enables full XMPP functionality including messaging, presence, roster management, and room operations for building chat applications, collaboration tools, and real-time communication systems.
+### Python Client Library
 
-## Skaffold Profiles
+```python
+import requests
+import jwt
+from datetime import datetime, timedelta
 
-### `dev` Profile
-- Single replica
-- LoadBalancer service
-- Suitable for local development
+class EjabberdAPI:
+    def __init__(self, base_url="http://localhost:5280", 
+                 admin_user="admin@ejabberd.local", admin_pass="admin123"):
+        self.base_url = base_url
+        self.admin_auth = (admin_user, admin_pass)
+        self.jwt_secret = "dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ"
+    
+    def generate_jwt(self, user_jid, expiry_minutes=60):
+        """Generate JWT token for user"""
+        now = datetime.utcnow()
+        payload = {
+            'jid': user_jid,
+            'iat': now,
+            'exp': now + timedelta(minutes=expiry_minutes),
+            'iss': 'ejabberd-api'
+        }
+        return jwt.encode(payload, self.jwt_secret, algorithm='HS256')
+    
+    def api_call(self, endpoint, data=None, auth_type="basic", user_jid=None, user_pass=None):
+        """Make API call with different authentication methods"""
+        url = f"{self.base_url}/api/{endpoint}"
+        headers = {"Content-Type": "application/json"}
+        
+        if auth_type == "basic":
+            if user_jid and user_pass:
+                auth = (user_jid, user_pass)
+            else:
+                auth = self.admin_auth
+            response = requests.post(url, json=data or {}, auth=auth, headers=headers)
+        
+        elif auth_type == "jwt":
+            if not user_jid:
+                raise ValueError("user_jid required for JWT auth")
+            token = self.generate_jwt(user_jid)
+            headers["Authorization"] = f"Bearer {token}"
+            response = requests.post(url, json=data or {}, headers=headers)
+        
+        return response
+    
+    # User Management
+    def register_user(self, username, password):
+        """Register new user (admin only)"""
+        data = {
+            "user": username,
+            "host": "ejabberd.local",
+            "password": password
+        }
+        return self.api_call("register", data)
+    
+    def check_user_exists(self, username):
+        """Check if user exists"""
+        data = {
+            "user": username,
+            "host": "ejabberd.local"
+        }
+        return self.api_call("check_account", data)
+    
+    # Messaging
+    def send_message(self, from_jid, to_jid, body, msg_type="chat", auth_type="basic", password=None):
+        """Send message"""
+        data = {
+            "type": msg_type,
+            "from": from_jid,
+            "to": to_jid,
+            "body": body
+        }
+        return self.api_call("send_message", data, auth_type, from_jid, password)
+    
+    def send_room_message(self, from_jid, room_name, body, password=None):
+        """Send message to MUC room"""
+        room_jid = f"{room_name}@conference.ejabberd.local"
+        return self.send_message(from_jid, room_jid, body, "groupchat", "basic", password)
+    
+    # Room Management
+    def create_room(self, room_name):
+        """Create MUC room (admin only)"""
+        data = {
+            "name": room_name,
+            "service": "conference.ejabberd.local",
+            "host": "ejabberd.local"
+        }
+        return self.api_call("create_room", data)
+    
+    def list_rooms(self):
+        """List online rooms"""
+        data = {"service": "conference.ejabberd.local"}
+        return self.api_call("muc_online_rooms", data)
+    
+    def get_room_occupants(self, room_name):
+        """Get room occupants"""
+        data = {
+            "name": room_name,
+            "service": "conference.ejabberd.local"
+        }
+        return self.api_call("get_room_occupants", data)
+    
+    # Presence Management
+    def set_presence(self, user_jid, password, show="chat", status="Available"):
+        """Set user presence"""
+        user, host = user_jid.split("@")
+        data = {
+            "user": user,
+            "host": host,
+            "resource": "api",
+            "type": "available",
+            "show": show,
+            "status": status,
+            "priority": "5"
+        }
+        return self.api_call("set_presence", data, "basic", user_jid, password)
+    
+    # Server Status
+    def get_online_users(self):
+        """Get list of online users"""
+        data = {"host": "ejabberd.local"}
+        return self.api_call("connected_users", data)
+    
+    def get_server_status(self):
+        """Get server status"""
+        return self.api_call("status")
 
-### `prod` Profile  
-- Multiple replicas
-- ClusterIP service
-- Ingress enabled
-- Autoscaling enabled
-- Uses production values
+# Usage Examples
+api = EjabberdAPI()
 
-## CI/CD Pipeline
+# 1. Register users
+api.register_user("alice", "alice123")
+api.register_user("bob", "bob123")
 
-### GitHub Actions Example
+# 2. Create room
+api.create_room("general")
+
+# 3. Send messages (Basic Auth)
+api.send_message("alice@ejabberd.local", "bob@ejabberd.local", "Hello Bob!", auth_type="basic", password="alice123")
+api.send_room_message("alice@ejabberd.local", "general", "Hello everyone!", "alice123")
+
+# 4. Send messages (JWT Auth)
+api.send_message("alice@ejabberd.local", "bob@ejabberd.local", "Hello via JWT!", auth_type="jwt")
+
+# 5. Set presence
+api.set_presence("alice@ejabberd.local", "alice123", "chat", "Ready to chat!")
+
+# 6. Get server info
+status = api.get_server_status()
+online_users = api.get_online_users()
+```
+
+### Node.js Client Library
+
+```javascript
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+
+class EjabberdAPI {
+    constructor(baseUrl = 'http://localhost:5280', adminUser = 'admin@ejabberd.local', adminPass = 'admin123') {
+        this.baseUrl = baseUrl;
+        this.adminAuth = { username: adminUser, password: adminPass };
+        this.jwtSecret = 'dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ';
+    }
+
+    generateJWT(userJid, expiryMinutes = 60) {
+        const now = new Date();
+        const payload = {
+            jid: userJid,
+            iat: Math.floor(now.getTime() / 1000),
+            exp: Math.floor(now.getTime() / 1000) + (expiryMinutes * 60),
+            iss: 'ejabberd-api'
+        };
+        return jwt.sign(payload, this.jwtSecret, { algorithm: 'HS256' });
+    }
+
+    async apiCall(endpoint, data = null, authType = 'basic', userJid = null, userPass = null) {
+        const url = `${this.baseUrl}/api/${endpoint}`;
+        const headers = { 'Content-Type': 'application/json' };
+
+        let config = { headers };
+
+        if (authType === 'basic') {
+            const auth = userJid && userPass ? 
+                { username: userJid, password: userPass } : 
+                this.adminAuth;
+            config.auth = auth;
+        } else if (authType === 'jwt') {
+            if (!userJid) throw new Error('userJid required for JWT auth');
+            const token = this.generateJWT(userJid);
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await axios.post(url, data, config);
+        return response.data;
+    }
+
+    // User Management
+    async registerUser(username, password) {
+        return this.apiCall('register', {
+            user: username,
+            host: 'ejabberd.local',
+            password: password
+        });
+    }
+
+    // Messaging
+    async sendMessage(fromJid, toJid, body, msgType = 'chat', authType = 'basic', password = null) {
+        return this.apiCall('send_message', {
+            type: msgType,
+            from: fromJid,
+            to: toJid,
+            body: body
+        }, authType, fromJid, password);
+    }
+
+    // Room Management
+    async createRoom(roomName) {
+        return this.apiCall('create_room', {
+            name: roomName,
+            service: 'conference.ejabberd.local',
+            host: 'ejabberd.local'
+        });
+    }
+
+    async listRooms() {
+        return this.apiCall('muc_online_rooms', {
+            service: 'conference.ejabberd.local'
+        });
+    }
+}
+
+// Usage
+const api = new EjabberdAPI();
+
+// Register users
+await api.registerUser('alice', 'alice123');
+await api.registerUser('bob', 'bob123');
+
+// Create room
+await api.createRoom('general');
+
+// Send messages
+await api.sendMessage('alice@ejabberd.local', 'bob@ejabberd.local', 'Hello Bob!', 'chat', 'basic', 'alice123');
+await api.sendMessage('alice@ejabberd.local', 'bob@ejabberd.local', 'Hello via JWT!', 'chat', 'jwt');
+```
+
+## 📡 Real-time Communication
+
+### WebSocket Support
+
+The HTTP API includes WebSocket support for real-time communication:
+
+```javascript
+// Connect to WebSocket
+const ws = new WebSocket('ws://localhost:5280/http-bind/');
+
+ws.onopen = function() {
+    console.log('Connected to ejabberd');
+    
+    // Authenticate
+    ws.send(JSON.stringify({
+        type: 'auth',
+        jid: 'alice@ejabberd.local',
+        password: 'alice123'
+    }));
+};
+
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    console.log('Received:', data);
+};
+
+// Send message via WebSocket
+ws.send(JSON.stringify({
+    type: 'message',
+    to: 'bob@ejabberd.local',
+    body: 'Hello via WebSocket!'
+}));
+```
+
+### File Upload Support
+
+The deployment includes HTTP file upload support:
+
+```bash
+# Upload file
+curl -X PUT http://localhost:5280/upload/ \
+  -H "Content-Type: application/octet-stream" \
+  -d @file.txt
+
+# Send message with file URL
+curl -u alice@ejabberd.local:alice123 -X POST http://localhost:5280/api/send_message \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "chat",
+    "from": "alice@ejabberd.local",
+    "to": "bob@ejabberd.local",
+    "body": "Check out this file: http://localhost:5280/upload/filename.txt"
+  }'
+```
+
+## 🧪 Testing
+
+### Hurl Test Suite
+
+The project includes comprehensive Hurl tests for all API endpoints:
+
+```bash
+# Run all tests
+hurl hurl-tests/*.hurl
+
+# Run specific test
+hurl hurl-tests/muc_endpoints.hurl
+
+# Run with verbose output
+hurl --verbose hurl-tests/room_file_upload.hurl
+```
+
+### Available Test Files
+
+- `muc_endpoints.hurl` - MUC room management tests
+- `room_file_upload.hurl` - File upload simulation tests
+- `create_room.hurl` - Room creation tests
+- `list_rooms.hurl` - Room listing tests
+- `status.hurl` - Server status tests
+
+### Python Test Suite
+
+```bash
+# Run Python tests
+cd ejabberd/tests
+python test_jwt_ejabberd.py
+python test_muc_admin.py
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | Auto-generated | JWT signing key |
+| `ADMIN_USER` | `admin@ejabberd.local` | Admin username |
+| `ADMIN_PASSWORD` | `admin123` | Admin password |
+| `EJABBERD_DOMAIN` | `ejabberd.local` | XMPP domain |
+
+### Custom Configuration
+
+Edit `ejabberd/ejabberd-config.yaml` to customize:
 
 ```yaml
-name: Deploy ejabberd
-on:
-  push:
-    branches: [main]
+# Add custom modules
+modules:
+  mod_custom: {}
+  
+# Configure external database
+database:
+  type: "postgresql"
+  host: "postgres.example.com"
+  port: 5432
+  name: "ejabberd"
+  user: "ejabberd"
+  password: "password"
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      
-      - name: Setup Google Cloud CLI
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          project_id: ${{ secrets.GCP_PROJECT }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          
-      - name: Configure kubectl
-        run: |
-          gcloud container clusters get-credentials your-cluster --zone us-central1-c
-          
-      - name: Install Skaffold
-        run: |
-          curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
-          sudo install skaffold /usr/local/bin/
-          
-      - name: Deploy with Skaffold
-        run: skaffold run --profile=prod
+# Add custom access rules
+access_rules:
+  custom_rule:
+    - allow: admin
+    - deny: all
 ```
 
-### Manual CI/CD with Helm
+### Production Values
 
-```bash
-# Build and push custom image (if needed)
-docker build -t gcr.io/your-project/ejabberd:$TAG .
-docker push gcr.io/your-project/ejabberd:$TAG
+Create `values-prod.yaml`:
 
-# Deploy with Helm
-helm upgrade --install ejabberd ./ejabberd \
-  --set image.tag=$TAG \
-  -f values-prod.yaml
+```yaml
+replicaCount: 3
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+
+ingress:
+  enabled: true
+  hosts:
+    - host: xmpp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
 ```
 
-## Customization
+## 🔒 Security
 
-### Extending the Image
+### Authentication Best Practices
 
-If you need to customize the ejabberd image:
+1. **Use JWT for API calls** - More secure than Basic Auth
+2. **Rotate JWT secrets regularly** - Update the secret in Kubernetes
+3. **Use HTTPS in production** - Configure TLS certificates
+4. **Implement rate limiting** - Add API rate limiting
+5. **Use external authentication** - LDAP, OAuth, etc.
 
-1. Uncomment the build section in `skaffold.yaml`
-2. Modify the `Dockerfile`
-3. Skaffold will automatically build and deploy your custom image
+### Network Security
 
-### Adding Configurations
-
-Add custom ejabberd configurations by:
-
-1. Editing the `ejabberd-config.yaml` file
-2. The configuration is automatically loaded and mounted
-
-## Admin User Bootstrap
-
-The chart includes an init container that automatically creates the admin user during pod startup:
-
-1. **Init Container Process**:
-   - Starts ejabberd temporarily
-   - Creates admin user with credentials from secret
-   - Stops ejabberd cleanly
-   - Passes control to main container
-
-2. **Admin User Details**:
-   - JID: `admin@ejabberd.local`
-   - Password: `admin123` (configurable)
-   - Role: Full admin privileges
-   - Database: Stored in ejabberd internal database
-
-3. **Troubleshooting Admin Creation**:
-```bash
-# Check init container logs
-kubectl logs <pod-name> -c create-admin-user
-
-# Verify admin user was created
-kubectl exec -it <pod-name> -- /opt/ejabberd/bin/ejabberdctl registered_users ejabberd.local
+```yaml
+# Network policies
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ejabberd-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: ejabberd
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: frontend
+    ports:
+    - protocol: TCP
+      port: 5280
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432
 ```
 
-## Troubleshooting
+## 📊 Monitoring
 
-### Check Pod Status
+### Health Checks
+
 ```bash
-kubectl get pods
-kubectl describe pod ejabberd-xxx
-kubectl logs ejabberd-xxx
+# Check server status
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/status
 
-# Check init container logs
-kubectl logs ejabberd-xxx -c create-admin-user
-```
-
-### Check Services
-```bash
-kubectl get svc
-kubectl describe svc ejabberd
-```
-
-### Port Forwarding for Testing
-```bash
-kubectl port-forward svc/ejabberd 5222:5222
-kubectl port-forward svc/ejabberd 5280:5280
-```
-
-### Verify Configuration File
-```bash
-# Check if the ConfigMap was created
-kubectl get configmap ejabberd-config
-
-# View the configuration content
-kubectl get configmap ejabberd-config -o yaml
-
-# Check if the file is mounted correctly
-kubectl exec -it ejabberd-xxx -- cat /opt/ejabberd/conf/ejabberd.yml
-```
-
-### Test HTTP API
-```bash
-# Test API connectivity
-curl -u admin@ejabberd.local:admin123 http://localhost:5280/api/status
-
-# Test MUC functionality
-curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/muc_online_rooms \
+# Check online users
+curl -u admin@ejabberd.local:admin123 -X POST http://localhost:5280/api/connected_users_number \
   -H "Content-Type: application/json" \
-  -d '{"service": "conference.ejabberd.local"}'
+  -d '{"host": "ejabberd.local"}'
 ```
 
-### Check Secrets
+### Prometheus Metrics
+
+The deployment includes Prometheus metrics endpoints:
+
+```yaml
+# Add to values.yaml
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+```
+
+### Logging
+
 ```bash
-# Verify secrets exist
-kubectl get secrets ejabberd-jwt-key ejabberd-admin
+# View logs
+kubectl logs -f deployment/ejabberd
 
-# Check secret contents
-kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-user}' | base64 -d
-kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-password}' | base64 -d
+# View specific container logs
+kubectl logs -f deployment/ejabberd -c ejabberd
 ```
 
-## Security Considerations
+## 🚀 Deployment Strategies
 
-- **Change default admin credentials**: Update `ejabberd.admin.password` in values.yaml for production
-- **Use external secrets management**: Consider using Kubernetes secrets or external secret managers
-- **Configure TLS certificates**: Set up proper TLS for XMPP and HTTP endpoints
-- **Set up network policies**: Restrict network access to ejabberd services
-- **Use external database**: Configure external PostgreSQL/MySQL for production
-- **Secure your API keys**: Rotate JWT secrets and API keys regularly
-- **Admin user security**: 
-  - The admin user is created automatically with internal auth
-  - Password is stored in Kubernetes secret `ejabberd-admin`
-  - Consider using external authentication providers for production
-- **MUC access control**: Review MUC access rules for your use case
+### Blue-Green Deployment
 
-## Contributing
+```bash
+# Deploy new version
+helm upgrade ejabberd-v2 ./ejabberd --set fullnameOverride=ejabberd-v2
+
+# Switch traffic
+kubectl patch svc ejabberd -p '{"spec":{"selector":{"app":"ejabberd-v2"}}}'
+
+# Remove old version
+helm uninstall ejabberd
+```
+
+### Rolling Update
+
+```bash
+# Update with rolling restart
+kubectl rollout restart deployment/ejabberd
+
+# Monitor rollout
+kubectl rollout status deployment/ejabberd
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **Admin user not created**
+   ```bash
+   kubectl logs deployment/ejabberd -c create-admin-user
+   ```
+
+2. **API not responding**
+   ```bash
+   kubectl port-forward svc/ejabberd 5280:5280
+   curl http://localhost:5280/api/status
+   ```
+
+3. **JWT authentication failing**
+   ```bash
+   kubectl get secret ejabberd-jwt-key -o jsonpath='{.data.jwt-key}' | base64 -d
+   ```
+
+### Debug Commands
+
+```bash
+# Check pod status
+kubectl get pods -l app=ejabberd
+
+# Check service endpoints
+kubectl get endpoints ejabberd
+
+# Check configuration
+kubectl exec deployment/ejabberd -- cat /opt/ejabberd/conf/ejabberd.yml
+
+# Test API connectivity
+curl -v -u admin@ejabberd.local:admin123 http://localhost:5280/api/status
+```
+
+## 📚 API Reference
+
+### Complete Endpoint List
+
+| Endpoint | Method | Description | Auth |
+|----------|--------|-------------|------|
+| `register` | POST | Register user | Admin |
+| `unregister` | POST | Delete user | Admin |
+| `send_message` | POST | Send message | User |
+| `get_roster` | POST | Get contacts | User |
+| `add_rosteritem` | POST | Add contact | User |
+| `delete_rosteritem` | POST | Remove contact | User |
+| `set_presence` | POST | Set presence | User |
+| `get_presence` | POST | Get presence | User |
+| `create_room` | POST | Create MUC room | Admin |
+| `destroy_room` | POST | Delete MUC room | Admin |
+| `muc_online_rooms` | POST | List rooms | Admin/User |
+| `get_room_occupants` | POST | Get room users | Admin/User |
+| `join_room` | POST | Join room | User |
+| `leave_room` | POST | Leave room | User |
+| `connected_users` | POST | List online users | Admin/User |
+| `connected_users_number` | POST | Count online users | Admin/User |
+| `status` | POST | Server status | Admin/User |
+
+### Message Types
+
+- `chat` - Direct message
+- `groupchat` - Room message
+- `headline` - Broadcast message
+- `normal` - Regular message
+
+### Presence Types
+
+- `chat` - Available
+- `away` - Away
+- `xa` - Extended away
+- `dnd` - Do not disturb
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make changes
-4. Test with `skaffold dev`
-5. Submit a pull request 
+3. Make changes and test with `skaffold dev`
+4. Run tests: `hurl hurl-tests/*.hurl`
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- **Documentation**: [ejabberd Docs](https://docs.ejabberd.im/)
+- **Issues**: Create an issue on GitHub
+- **Community**: [ejabberd Community](https://www.ejabberd.im/community) 
