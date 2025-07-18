@@ -747,6 +747,56 @@ python test_muc_admin.py
 | `ADMIN_PASSWORD` | `admin123` | Admin password |
 | `EJABBERD_DOMAIN` | `ejabberd.local` | XMPP domain |
 
+### Values.yaml Configuration
+
+The Helm chart supports customizing secrets and configuration through `values.yaml`:
+
+#### Secret Configuration
+
+```yaml
+# Secret configuration
+secrets:
+  # JWT secret key (JWK format)
+  jwt:
+    # You can override this with your own JWT secret
+    # Example: {"kty":"oct","k":"your-base64-encoded-secret-key"}
+    key: '{"kty":"oct","k":"ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E="}'
+  
+  # Admin credentials
+  admin:
+    user: "admin"
+    password: "password"
+  
+  # API service account credentials
+  api:
+    user: "api"
+    password: "api-service-password"
+```
+
+#### Ejabberd Configuration
+
+```yaml
+# ejabberd specific configuration
+ejabberd:
+  # XMPP domain
+  domain: "ejabberd.local"
+  # Admin user
+  admin:
+    user: "admin"
+    password: "admin123"
+  # Database configuration
+  database:
+    type: "internal"  # internal, mysql, postgresql
+    # host: ""
+    # port: ""
+    # name: ""
+    # user: ""
+    # password: ""
+  
+  # Configuration file - always loaded from ejabberd-config.yaml
+  configFile: "ejabberd-config.yaml"
+```
+
 ### Custom Configuration
 
 Edit `ejabberd/ejabberd-config.yaml` to customize:
@@ -770,6 +820,66 @@ access_rules:
   custom_rule:
     - allow: admin
     - deny: all
+```
+
+### Secret Configuration
+
+The Helm chart allows you to customize JWT secrets and admin credentials via `values.yaml`:
+
+```yaml
+# Secret configuration
+secrets:
+  # JWT secret key (JWK format)
+  jwt:
+    # You can override this with your own JWT secret
+    # Example: {"kty":"oct","k":"your-base64-encoded-secret-key"}
+    key: '{"kty":"oct","k":"ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E="}'
+  
+  # Admin credentials
+  admin:
+    user: "admin"
+    password: "password"
+  
+  # API service account credentials
+  api:
+    user: "api"
+    password: "api-service-password"
+```
+
+**Generate a new JWT secret:**
+
+```bash
+# Use the provided script
+python3 generate-jwt-secret.py
+
+# Or generate manually
+python3 -c "
+import secrets
+import base64
+import json
+key_bytes = secrets.token_bytes(32)
+key_b64 = base64.urlsafe_b64encode(key_bytes).decode('utf-8').rstrip('=')
+jwk = {'kty': 'oct', 'k': key_b64}
+print(json.dumps(jwk, separators=(',', ':')))
+"
+```
+
+**Deploy with custom secrets:**
+
+```bash
+# Create custom values file
+cat > my-secrets.yaml << EOF
+secrets:
+  jwt:
+    key: '{"kty":"oct","k":"your-generated-secret-here"}'
+  admin:
+    password: "your-secure-admin-password"
+  api:
+    password: "your-secure-api-password"
+EOF
+
+# Deploy with custom secrets
+helm install ejabberd ./ejabberd -f my-secrets.yaml
 ```
 
 ### Production Values
