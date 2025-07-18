@@ -157,3 +157,21 @@ ejabberd:
   
   # Configuration file - always loaded from ejabberd-config.yaml
   configFile: "ejabberd-config.yaml"
+
+# Secret configuration
+secrets:
+  # JWT secret key (JWK format)
+  jwt:
+    # You can override this with your own JWT secret
+    # Example: {"kty":"oct","k":"your-base64-encoded-secret-key"}
+    key: '{"kty":"oct","k":"ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E="}'
+  
+  # Admin credentials
+  admin:
+    user: "admin"
+    password: "password"
+  
+  # API service account credentials
+  api:
+    user: "api"
+    password: "api-service-password"

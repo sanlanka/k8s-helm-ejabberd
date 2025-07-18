@@ -117,6 +117,261 @@ curl -H "X-API-Key: your-secure-api-key-here" -X POST http://localhost:5280/api/
   -d '{}'
 ```
 
+## 🔑 Service-to-Service Authentication
+
+### Required Secrets and Credentials
+
+When integrating other services with this ejabberd deployment, you'll need the following authentication secrets:
+
+#### 1. JWT Secret Key
+
+**Purpose:** Used for JWT token generation and validation
+**Secret Name:** `ejabberd-jwt-key`
+**Key:** `jwt-key`
+**Default Value:** `{"kty":"oct","k":"ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E="}`
+
+**How to get it:**
+```bash
+# Get the JWT secret from Kubernetes
+kubectl get secret ejabberd-jwt-key -o jsonpath='{.data.jwt-key}' | base64 -d
+
+# Or decode the default value
+echo "ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E=" | base64 -d
+```
+
+**Decoded Secret:** `dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ`
+
+#### 2. Admin Credentials
+
+**Purpose:** Full administrative access to ejabberd
+**Secret Name:** `ejabberd-admin`
+**Keys:** `admin-user`, `admin-password`
+**Default Values:**
+- Username: `admin@ejabberd.local`
+- Password: `admin123`
+
+**How to get them:**
+```bash
+# Get admin credentials from Kubernetes
+kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-user}' | base64 -d
+kubectl get secret ejabberd-admin -o jsonpath='{.data.admin-password}' | base64 -d
+```
+
+#### 3. API Service Account
+
+**Purpose:** Dedicated service account for API operations
+**Secret Name:** `ejabberd-admin`
+**Keys:** `api-user`, `api-password`
+**Default Values:**
+- Username: `api@ejabberd.local`
+- Password: `api-service-password`
+
+**How to get them:**
+```bash
+# Get API credentials from Kubernetes
+kubectl get secret ejabberd-admin -o jsonpath='{.data.api-user}' | base64 -d
+kubectl get secret ejabberd-admin -o jsonpath='{.data.api-password}' | base64 -d
+```
+
+### Integration Examples
+
+#### Python Service Integration
+
+```python
+import requests
+import jwt
+from datetime import datetime, timedelta
+
+class EjabberdServiceClient:
+    def __init__(self, base_url, jwt_secret=None, admin_user=None, admin_password=None):
+        self.base_url = base_url
+        self.jwt_secret = jwt_secret or "dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ"
+        self.admin_auth = (admin_user or "admin@ejabberd.local", 
+                          admin_password or "admin123")
+    
+    def generate_jwt(self, user_jid, expiry_minutes=60):
+        """Generate JWT token for service-to-service communication"""
+        now = datetime.utcnow()
+        payload = {
+            'jid': user_jid,
+            'iat': now,
+            'exp': now + timedelta(minutes=expiry_minutes),
+            'iss': 'ejabberd-api'
+        }
+        return jwt.encode(payload, self.jwt_secret, algorithm='HS256')
+    
+    def send_message_as_service(self, from_jid, to_jid, body):
+        """Send message using JWT authentication"""
+        token = self.generate_jwt(from_jid)
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "type": "chat",
+            "from": from_jid,
+            "to": to_jid,
+            "body": body
+        }
+        response = requests.post(
+            f"{self.base_url}/api/send_message",
+            json=data,
+            headers=headers
+        )
+        return response.json()
+
+# Usage in your service
+client = EjabberdServiceClient("http://ejabberd-service:5280")
+client.send_message_as_service(
+    "service@ejabberd.local",
+    "user@ejabberd.local", 
+    "Hello from your service!"
+)
+```
+
+#### Node.js Service Integration
+
+```javascript
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+
+class EjabberdServiceClient {
+    constructor(baseUrl, jwtSecret = 'dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ') {
+        this.baseUrl = baseUrl;
+        this.jwtSecret = jwtSecret;
+    }
+
+    generateJWT(userJid, expiryMinutes = 60) {
+        const now = new Date();
+        const payload = {
+            jid: userJid,
+            iat: Math.floor(now.getTime() / 1000),
+            exp: Math.floor(now.getTime() / 1000) + (expiryMinutes * 60),
+            iss: 'ejabberd-api'
+        };
+        return jwt.sign(payload, this.jwtSecret, { algorithm: 'HS256' });
+    }
+
+    async sendMessage(fromJid, toJid, body) {
+        const token = this.generateJWT(fromJid);
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+        
+        const data = {
+            type: 'chat',
+            from: fromJid,
+            to: toJid,
+            body: body
+        };
+
+        const response = await axios.post(
+            `${this.baseUrl}/api/send_message`,
+            data,
+            { headers }
+        );
+        return response.data;
+    }
+}
+
+// Usage in your service
+const client = new EjabberdServiceClient('http://ejabberd-service:5280');
+await client.sendMessage(
+    'service@ejabberd.local',
+    'user@ejabberd.local',
+    'Hello from your service!'
+);
+```
+
+#### Kubernetes Secret Integration
+
+**Create a secret for your service:**
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-service-ejabberd-secrets
+type: Opaque
+data:
+  jwt-secret: ZGJUczNLREIzM3ZXZEdHbUp3djdVSkpSd0xRU2FtY1E=  # base64 encoded
+  admin-user: YWRtaW5AZWphYmJlcmQubG9jYWw=  # admin@ejabberd.local
+  admin-password: YWRtaW4xMjM=  # admin123
+  api-user: YXBpQGVqYWJiZXJkLmxvY2Fs  # api@ejabberd.local
+  api-password: YXBpLXNlcnZpY2UtcGFzc3dvcmQ=  # api-service-password
+```
+
+**Use in your deployment:**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-service
+spec:
+  template:
+    spec:
+      containers:
+      - name: my-service
+        env:
+        - name: EJABBERD_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: my-service-ejabberd-secrets
+              key: jwt-secret
+        - name: EJABBERD_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: my-service-ejabberd-secrets
+              key: admin-user
+        - name: EJABBERD_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-service-ejabberd-secrets
+              key: admin-password
+```
+
+### Environment Variables Reference
+
+| Variable | Secret Key | Default Value | Purpose |
+|----------|------------|---------------|---------|
+| `JWT_SECRET` | `jwt-key` | `dbTs3KDBI33vWdGGmJwv7UJJRwLQSamcQ` | JWT token signing |
+| `ADMIN_USER` | `admin-user` | `admin@ejabberd.local` | Admin username |
+| `ADMIN_PASSWORD` | `admin-password` | `admin123` | Admin password |
+| `API_USER` | `api-user` | `api@ejabberd.local` | API service account |
+| `API_PASSWORD` | `api-password` | `api-service-password` | API service password |
+
+### Security Best Practices
+
+1. **Rotate Secrets Regularly:**
+   ```bash
+   # Generate new JWT secret
+   openssl rand -base64 32
+   
+   # Update the secret
+   kubectl patch secret ejabberd-jwt-key -p '{"data":{"jwt-key":"NEW_BASE64_ENCODED_SECRET"}}'
+   ```
+
+2. **Use Service-Specific JWT Secrets:**
+   ```python
+   # Generate service-specific secret
+   service_jwt_secret = "your-service-specific-secret"
+   
+   # Use in your service
+   client = EjabberdServiceClient("http://ejabberd:5280", service_jwt_secret)
+   ```
+
+3. **Implement Token Expiry:**
+   ```python
+   # Use short-lived tokens for security
+   token = client.generate_jwt("service@ejabberd.local", expiry_minutes=15)
+   ```
+
+4. **Monitor API Usage:**
+   ```bash
+   # Check API access logs
+   kubectl logs deployment/ejabberd | grep "HTTP API"
+   ```
+
 ## 🌐 Proxy Calls to ejabberd
 
 ### HTTP API Endpoints
