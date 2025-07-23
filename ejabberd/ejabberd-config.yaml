@@ -83,6 +83,10 @@ api_permissions:
       - "user_resources"
       - "send_chat_state"
       - "get_offline_count"
+      - "mam_retrieve"
+      - "mam_remove_archive"
+      - "get_mam_preferences"
+      - "set_mam_preferences"
   "user api access":
     who:
       - local
@@ -109,6 +113,8 @@ api_permissions:
       - "connected_users_info"
       - "user_sessions_info"
       - "status"
+      - "get_room_history"
+      - "mam_retrieve"
   "jwt api access":
     from:
       - mod_http_api
@@ -129,6 +135,8 @@ api_permissions:
       - "muc_online_rooms"
       - "get_room_occupants"
       - "get_room_options"
+      - "get_room_history"
+      - "mam_retrieve"
 
 # ACL definitions
 acl:
@@ -170,6 +178,12 @@ access_rules:
   api_access:
     - allow: local
     - allow: admin
+  # MAM access rules
+  mam:
+    - allow: all
+  # MUC creation rules
+  muc_create:
+    - allow: all
 
 # 4. (Optional) If your token uses a different claim than "jid"
 # jwt_jid_field: "user_claim"
@@ -198,6 +212,9 @@ modules:
       members_only: false
       persistent: true
       public: true
+      # Enable MAM for all rooms by default
+      mam: true
+      logging: true
   # Admin API helpers for MUC
   mod_muc_admin: {}
   mod_offline:
@@ -216,9 +233,25 @@ modules:
   mod_time: {}
   mod_vcard: {}
   mod_version: {}
+  # Enhanced MAM configuration for both individual chats and MUC rooms
   mod_mam:
+    # Assume MAM usage for better performance
     assume_mam_usage: true
+    # Default MAM behavior for user messages
     default: roster
+    # Enable MUC MAM
+    iqdisc: parallel
+    # Access control for MAM
+    access: mam
+    # Cache settings for better performance
+    cache_size: 1000
+    cache_missed: true
+    cache_life_time: 3600
+    # Default settings for MUC rooms
+    default_room_options:
+      mam: true
+    # User preferences
+    request_activates_archiving: true
   mod_http_upload:
     put_url: http://@HOST@:5280/upload
     docroot: "/opt/ejabberd/upload"

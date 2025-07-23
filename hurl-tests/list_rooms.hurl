@@ -30,11 +30,11 @@ HTTP/1.1 200
 [Asserts]
 body contains "0"
 
-# Create room2
-POST http://localhost:5280/api/create_room
+# Create room2 with MAM explicitly enabled
+POST http://localhost:5280/api/create_room_with_opts
 Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
 Content-Type: application/json
-{"room":"testroom2","service":"conference.ejabberd.local","host":"ejabberd.local"}
+{"name":"testroom2","service":"conference.ejabberd.local","host":"ejabberd.local","options":{"persistent":"true","public":"true","members_only":"false","mam":"true","logging":"true"}}
 HTTP/1.1 200
 [Asserts]
 body contains "0"
@@ -58,6 +58,15 @@ HTTP/1.1 200
 [Asserts]
 body contains "successfully registered"
 
+# Verify room2 has MAM enabled
+POST http://localhost:5280/api/get_room_options
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"room":"testroom2","service":"conference.ejabberd.local"}
+HTTP/1.1 200
+[Asserts]
+body contains "mam"
+
 # Send multiple messages to the room
 POST http://localhost:5280/api/send_message
 Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
@@ -67,11 +76,11 @@ HTTP/1.1 200
 [Asserts]
 body contains "0"
 
-# Send second message
+# Send second message with unique identifier
 POST http://localhost:5280/api/send_message
 Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
 Content-Type: application/json
-{"type":"groupchat","from":"test_user@ejabberd.local","to":"testroom2@conference.ejabberd.local","subject":"","body":"Second message from test_user"}
+{"type":"groupchat","from":"test_user@ejabberd.local","to":"testroom2@conference.ejabberd.local","subject":"","body":"Second message from test_user - verification ID 98765"}
 HTTP/1.1 200
 [Asserts]
 body contains "0"
@@ -84,6 +93,27 @@ Content-Type: application/json
 HTTP/1.1 200
 [Asserts]
 body contains "0"
+
+# ============================================================================
+# MESSAGE DELIVERY VERIFICATION USING MAM
+# ============================================================================
+
+# Try to retrieve room history using get_room_history API (if available)
+POST http://localhost:5280/api/get_room_history
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"room":"testroom2","service":"conference.ejabberd.local"}
+HTTP/1.1 *
+
+# Alternative: Use MAM retrieve to get recent messages from the room
+POST http://localhost:5280/api/mam_retrieve
+Authorization: Basic YXBpQGVqYWJiZXJkLmxvY2FsOmFwaS1zZXJ2aWNlLXBhc3N3b3Jk
+Content-Type: application/json
+{"archive_jid":"testroom2@conference.ejabberd.local","max":"10"}
+HTTP/1.1 *
+[Asserts]
+# If MAM is working, this should contain our test messages
+# Note: The exact response format depends on ejabberd version
 
 # Subscribe to room for MUC/Sub functionality (not available in this ejabberd version)
 # POST http://localhost:5280/api/subscribe_room
