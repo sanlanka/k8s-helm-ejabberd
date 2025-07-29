@@ -239,17 +239,10 @@ modules:
     assume_mam_usage: true
     # Default MAM behavior for user messages
     default: roster
-    # Enable MUC MAM
-    iqdisc: parallel
-    # Access control for MAM
-    access: mam
     # Cache settings for better performance
     cache_size: 1000
     cache_missed: true
     cache_life_time: 3600
-    # Default settings for MUC rooms
-    default_room_options:
-      mam: true
     # User preferences
     request_activates_archiving: true
   mod_http_upload:
