@@ -16,6 +16,7 @@ deploy:
         chartPath: ./ejabberd
         valuesFiles:
           - ejabberd/values.yaml
+        namespace: ejabberd
 profiles:
   - name: dev
     activation:
@@ -28,10 +29,25 @@ profiles:
             chartPath: ./ejabberd
             valuesFiles:
               - ejabberd/values.yaml
+            namespace: ejabberd
             setValues:
               replicaCount: 2
               service.type: LoadBalancer
               ingress.enabled: false
+    portForward:
+      - resourceType: service
+        resourceName: ejabberd
+        namespace: ejabberd
+        port: 5222
+        localPort: 5222
+        address: "127.0.0.1"
+      - resourceType: service
+        resourceName: ejabberd
+        namespace: ejabberd
+        port: 5280
+        localPort: 5280
+        address: "127.0.0.1"
+
   - name: prod
     activation:
       - command: run

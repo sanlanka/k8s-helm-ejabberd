@@ -2,39 +2,39 @@
 # This file contains the ejabberd server configuration
 # Reference: https://docs.ejabberd.im/admin/configuration/
 
-# Define your XMPP domains
+# 1. Define your XMPP domains
 hosts:
   - "ejabberd.local"
 
-# Logging level
+# 2. Logging level
 loglevel: info
 
-# Use Mnesia (the default engine)
+# 3. Use Mnesia (the default engine)
 default_db: mnesia
 
-# Persist module queues to files under your Mnesia dir
+# 4. Persist module queues to files under your Mnesia dir
 queue_type: file
 queue_dir: "/opt/ejabberd/database/queues"
 
-# (Optional) clustering config if you run multiple pods
+# 5. (Optional) clustering config if you run multiple pods
 # cluster_nodes: ["ejabberd@node1.example.com", "ejabberd@node2.example.com"]
 # cluster_backend: pg2
 
-# Listen configuration
+# 6. Listen configuration
 listen:
-  # XMPP client connections
+  # XMPP client connections (C2S)
   -
     port: 5222
     module: ejabberd_c2s
     max_stanza_size: 262144
     shaper: c2s_shaper
     access: c2s
-  # XMPP server-to-server connections
+  # XMPP server-to-server connections (S2S in)
   -
     port: 5269
     module: ejabberd_s2s_in
     max_stanza_size: 524288
-  # HTTP admin interface
+  # HTTP admin interface & BOSH/Websocket
   -
     port: 5280
     module: ejabberd_http
@@ -44,14 +44,14 @@ listen:
     web_admin: true
     http_bind: true
 
-# Enable both internal and JWT authentication
+# 7. Enable both internal and JWT authentication
 auth_method: [internal, jwt]
 
-# JWT configuration  
+# 8. JWT configuration
 jwt_key: "/opt/ejabberd/conf/jwt-key"
 jwt_jid_field: jid
 
-# API permissions for JWT-based authentication
+# 9. API permissions for JWT-based authentication
 api_permissions:
   "console commands":
     from:
@@ -138,7 +138,7 @@ api_permissions:
       - "get_room_history"
       - "mam_retrieve"
 
-# ACL definitions
+# 10. ACL definitions
 acl:
   admin:
     user:
@@ -149,7 +149,7 @@ acl:
   local:
     user_regexp: ""
 
-# 3. Access rules
+# 11. Access rules
 access_rules:
   local:
     - allow: local
@@ -160,36 +160,30 @@ access_rules:
     - allow: admin
   configure:
     - allow: admin
-  # MUC access rules - allow anyone to create and join rooms
+  # MUC rules
   muc:
     - allow: all
   muc_admin:
-    - allow: api    # service account may create/destroy rooms
+    - allow: api
     - allow: admin
-    - allow: local  # allow local users to manage rooms
-  # Allow registration for all users
+    - allow: local
+  muc_create:
+    - allow: all
   register:
     - allow: all
   trusted_network:
     - allow
   pubsub_createnode:
     - allow: local
-  # API access - allow local users to use HTTP API
   api_access:
     - allow: local
     - allow: admin
-  # MAM access rules
   mam:
     - allow: all
-  # MUC creation rules
-  muc_create:
-    - allow: all
 
-# 4. (Optional) If your token uses a different claim than "jid"
-# jwt_jid_field: "user_claim"
-
-# Module configuration
+# 12. Module configuration
 modules:
+  # Ad-hoc commands & extras
   mod_adhoc: {}
   mod_admin_extra: {}
   mod_announce:
@@ -198,62 +192,51 @@ modules:
   mod_caps: {}
   mod_http_api:
     default_version: 2
+
+  # Presence & vcard
   mod_last: {}
-  # Core MUC service - allow anyone to create and join rooms
+  mod_vcard: {}
+  mod_privacy: {}
+  mod_private: {}
+
+  # Roster & offline
+  mod_roster:
+    versioning: true
+    store_current_id: false
+  mod_offline:
+    access_max_user_messages: max_user_offline_messages
+
+  # Stream management & carbons
+  mod_stream_mgmt: {}
+  mod_carboncopy: {}
+  mod_sic: {}
+
+  # Single-user message archiving (MAM)
+  mod_mam:
+    assume_mam_usage: true
+    default: roster
+    cache_size: 1000
+    cache_missed: true
+    cache_life_time: 3600
+    request_activates_archiving: true
+
+  # Multi-User Chat (MUC)
   mod_muc:
     host: "conference.@HOST@"
     access:
-      - allow
-    access_admin:
-      - allow: admin
+      - allow: muc
     access_create: muc_create
-    access_persistent: muc_create
+    access_admin: muc_admin
     default_room_options:
       members_only: false
       persistent: true
       public: true
-      # Enable MAM for all rooms by default
       mam: true
       logging: true
-  # Admin API helpers for MUC
   mod_muc_admin: {}
-  mod_offline:
-    access_max_user_messages: max_user_offline_messages
-  mod_ping: {}
-  mod_privacy: {}
-  mod_private: {}
-  # Enable registration module
-  mod_register:
-    access: register
-  mod_roster:
-    versioning: true
-    store_current_id: false
-  mod_s2s_dialback: {}
-  mod_shared_roster: {}
-  mod_time: {}
-  mod_vcard: {}
-  mod_version: {}
-  # Enhanced MAM configuration for both individual chats and MUC rooms
-  mod_mam:
-    # Assume MAM usage for better performance
-    assume_mam_usage: true
-    # Default MAM behavior for user messages
-    default: roster
-    # Cache settings for better performance
-    cache_size: 1000
-    cache_missed: true
-    cache_life_time: 3600
-    # User preferences
-    request_activates_archiving: true
-  mod_http_upload:
-    put_url: http://@HOST@:5280/upload
-    docroot: "/opt/ejabberd/upload"
-    max_size: 10485760
-  # Enable presence and chat state functionality
-  mod_carboncopy: {}
-  mod_stream_mgmt: {}
-  # Enable typing indicators and chat states
-  mod_sic: {}
+  mod_muc_log: {}
+
+  # PubSub & PEP
   mod_pubsub:
     access_createnode: pubsub_createnode
     plugins:
@@ -270,12 +253,25 @@ modules:
         access_model: presence
       "urn:xmpp:avatar:metadata":
         access_model: presence
+
+  # HTTP file upload
+  mod_http_upload:
+    put_url: "http://@HOST@:5280/upload"
+    docroot: "/opt/ejabberd/upload"
+    max_size: 10485760
+
+  # Other utilities
+  mod_ping: {}
+  mod_time: {}
+  mod_version: {}
+  mod_register:
+    access: register
+  mod_shared_roster: {}
+  mod_s2s_dialback: {}
   mod_push: {}
-  mod_muc_log: {}
-  # Enable blocking command (XEP-0191)
   mod_blocking: {}
 
-# Shaper rules
+# 13. Shaper rules
 shaper_rules:
   max_user_sessions: 10
   max_user_offline_messages:
@@ -286,7 +282,7 @@ shaper_rules:
     - normal
   s2s_shaper: fast
 
-# Shapers
+# 14. Shapers
 shaper:
   normal: 1000
   fast: 50000
