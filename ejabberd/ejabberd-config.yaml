@@ -210,6 +210,8 @@ modules:
   mod_stream_mgmt: {}
   mod_carboncopy: {}
   mod_sic: {}
+  mod_client_state: {}
+  mod_push_keepalive: {}
 
   # Single-user message archiving (MAM)
   mod_mam:
@@ -235,6 +237,7 @@ modules:
       logging: true
   mod_muc_admin: {}
   mod_muc_log: {}
+  mod_muc_occupantid: {}
 
   # PubSub & PEP
   mod_pubsub:
